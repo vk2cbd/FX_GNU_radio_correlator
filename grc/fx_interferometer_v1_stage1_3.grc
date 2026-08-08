@@ -1,0 +1,468 @@
+options:
+  parameters:
+    author: ''
+    category: '[GRC Hier Blocks]'
+    cmake_opt: ''
+    comment: 'Stage 1-3 coherent FX engine only. RX0=Antenna 0 / 2.4 m, RX1=Antenna 1 / 1.7 m. Cross-spectrum convention: C01[k] = X0[k] * conj(X1[k]). High-side LNB sky axis uses x_start=lnb_lo-(if_cf-samp_rate/2), x_step=-samp_rate/fft_size.'
+    copyright: ''
+    description: 'Minimal two-channel B210 FX correlator commissioning flowgraph.'
+    gen_cmake: 'Off'
+    gen_linking: dynamic
+    generate_options: qt_gui
+    hier_block_src_path: '.:'
+    id: fx_interferometer_v1_stage1_3
+    max_nouts: '0'
+    output_language: python
+    placement: (0,0)
+    qt_qss_theme: ''
+    realtime_scheduling: ''
+    run_command: '{python} -u {filename}'
+    run_options: prompt
+    sizing_mode: fixed
+    thread_safe_setters: ''
+    title: 'FX Interferometer V1 Stage 1-3'
+    window_size: ''
+
+blocks:
+- name: samp_rate
+  id: variable
+  parameters:
+    comment: 'Target B210 sample rate per RX channel.'
+    value: 30.72e6
+  states:
+    enabled: true
+
+- name: fft_size
+  id: variable
+  parameters:
+    comment: 'Default FFT length. Stage 1-3 default is 4096.'
+    value: 4096
+  states:
+    enabled: true
+
+- name: accum_time
+  id: variable
+  parameters:
+    comment: 'First-stage accumulation time in seconds.'
+    value: 0.1
+  states:
+    enabled: true
+
+- name: fft_rate
+  id: variable
+  parameters:
+    comment: 'At defaults: 30.72e6/4096 = 7500 FFT vectors/s.'
+    value: samp_rate/fft_size
+  states:
+    enabled: true
+
+- name: accum_frames
+  id: variable
+  parameters:
+    comment: 'At defaults: round(7500*0.1) = 750 FFT vectors.'
+    value: int(round(fft_rate*accum_time))
+  states:
+    enabled: true
+
+- name: sky_cf
+  id: variable
+  parameters:
+    comment: 'Nominal astronomical sky centre frequency, Hz.'
+    value: 4.800e9
+  states:
+    enabled: true
+
+- name: lnb_lo
+  id: variable
+  parameters:
+    comment: 'High-side LNB local oscillator, Hz.'
+    value: 5.950e9
+  states:
+    enabled: true
+
+- name: if_cf
+  id: variable
+  parameters:
+    comment: 'Nominal B210 IF centre frequency: lnb_lo - sky_cf = 1.150 GHz.'
+    value: lnb_lo-sky_cf
+  states:
+    enabled: true
+
+- name: sky_axis_start
+  id: variable
+  parameters:
+    comment: 'Left edge of shifted FFT display in sky Hz. High-side conversion reverses IF frequency.'
+    value: lnb_lo-(if_cf-samp_rate/2)
+  states:
+    enabled: true
+
+- name: sky_axis_step
+  id: variable
+  parameters:
+    comment: 'Negative display bin step maps increasing IF bins to decreasing sky frequency.'
+    value: -samp_rate/fft_size
+  states:
+    enabled: true
+
+- name: gain0
+  id: variable
+  parameters:
+    comment: 'RX0 / antenna 0 / 2.4 m commissioning gain, dB.'
+    value: 20
+  states:
+    enabled: true
+
+- name: gain1
+  id: variable
+  parameters:
+    comment: 'RX1 / antenna 1 / 1.7 m commissioning gain, dB.'
+    value: 20
+  states:
+    enabled: true
+
+- name: uhd_usrp_source_0
+  id: uhd_usrp_source
+  parameters:
+    affinity: ''
+    alias: ''
+    ant0: ''
+    ant1: ''
+    bandwidth0: '0'
+    bandwidth1: '0'
+    center_freq0: if_cf
+    center_freq1: if_cf
+    clock_rate: '0.0'
+    clock_source0: external
+    dc_offs0: 0+0j
+    dc_offs1: 0+0j
+    dc_offs_enb0: default
+    dc_offs_enb1: default
+    dev_addr: ''
+    gain0: gain0
+    gain1: gain1
+    gain_mode0: 'False'
+    gain_mode1: 'False'
+    iq_balance0: 0+0j
+    iq_balance1: 0+0j
+    iq_balance_enb0: default
+    iq_balance_enb1: default
+    lo_export0: 'False'
+    lo_export1: 'False'
+    lo_source0: internal
+    lo_source1: internal
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nchan: '2'
+    num_mboards: '1'
+    otw: sc16
+    samp_rate: samp_rate
+    sd_spec0: ''
+    show_lo_controls: 'False'
+    start_time: '-1.0'
+    stream_args: ''
+    stream_chans: '[0,1]'
+    sync: sync
+    time_source0: internal
+    type: fc32
+  states:
+    enabled: true
+
+- name: rx0_stream_to_vector
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: fft_size
+    type: complex
+  states:
+    enabled: true
+
+- name: rx1_stream_to_vector
+  id: blocks_stream_to_vector
+  parameters:
+    affinity: ''
+    alias: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    num_items: fft_size
+    type: complex
+  states:
+    enabled: true
+
+- name: rx0_fft
+  id: fft_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    fft_size: fft_size
+    forward: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nthreads: '1'
+    shift: 'True'
+    type: complex
+    window: window.blackmanharris(fft_size)
+  states:
+    enabled: true
+
+- name: rx1_fft
+  id: fft_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    fft_size: fft_size
+    forward: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    nthreads: '1'
+    shift: 'True'
+    type: complex
+    window: window.blackmanharris(fft_size)
+  states:
+    enabled: true
+
+- name: rx0_mag2
+  id: blocks_complex_to_mag_squared
+  parameters:
+    affinity: ''
+    alias: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: rx1_mag2
+  id: blocks_complex_to_mag_squared
+  parameters:
+    affinity: ''
+    alias: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: rx0_power_accum
+  id: blocks_integrate_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    decim: accum_frames
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: rx1_power_accum
+  id: blocks_integrate_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    decim: accum_frames
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: rx0_power_db
+  id: blocks_nlog10_ff
+  parameters:
+    affinity: ''
+    alias: ''
+    k: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '10'
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: rx1_power_db
+  id: blocks_nlog10_ff
+  parameters:
+    affinity: ''
+    alias: ''
+    k: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '10'
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: cross_multiply_conjugate
+  id: blocks_multiply_conjugate_cc
+  parameters:
+    affinity: ''
+    alias: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: cross_accum
+  id: blocks_integrate_xx
+  parameters:
+    affinity: ''
+    alias: ''
+    decim: accum_frames
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: complex
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: cross_mag
+  id: blocks_complex_to_mag
+  parameters:
+    affinity: ''
+    alias: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: cross_mag_db
+  id: blocks_nlog10_ff
+  parameters:
+    affinity: ''
+    alias: ''
+    k: '0'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    n: '20'
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: cross_phase_rad
+  id: blocks_complex_to_arg
+  parameters:
+    affinity: ''
+    alias: ''
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: cross_phase_deg
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    const: 180.0/math.pi
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: fft_size
+  states:
+    enabled: true
+
+- name: auto_spectra_sink
+  id: qtgui_vector_sink_f
+  parameters:
+    affinity: ''
+    alias: ''
+    average: '1.0'
+    autoscale: 'True'
+    grid: 'True'
+    gui_hint: ''
+    label1: 'RX0 P0: antenna 0 / 2.4 m'
+    label2: 'RX1 P1: antenna 1 / 1.7 m'
+    legend: 'True'
+    nconnections: '2'
+    ref_level: '0'
+    showports: 'True'
+    update_time: '0.10'
+    vlen: fft_size
+    x_axis_label: 'Sky frequency (Hz), high-side LNB inverted'
+    x_start: sky_axis_start
+    x_step: sky_axis_step
+    y_axis_label: 'Relative power (dB)'
+  states:
+    enabled: true
+
+- name: cross_mag_sink
+  id: qtgui_vector_sink_f
+  parameters:
+    affinity: ''
+    alias: ''
+    average: '1.0'
+    autoscale: 'True'
+    grid: 'True'
+    gui_hint: ''
+    label1: '|C01|, X0 * conj(X1)'
+    legend: 'True'
+    nconnections: '1'
+    ref_level: '0'
+    showports: 'True'
+    update_time: '0.10'
+    vlen: fft_size
+    x_axis_label: 'Sky frequency (Hz), high-side LNB inverted'
+    x_start: sky_axis_start
+    x_step: sky_axis_step
+    y_axis_label: 'Relative cross magnitude (dB)'
+  states:
+    enabled: true
+
+- name: cross_phase_sink
+  id: qtgui_vector_sink_f
+  parameters:
+    affinity: ''
+    alias: ''
+    average: '1.0'
+    autoscale: 'False'
+    grid: 'True'
+    gui_hint: ''
+    label1: 'arg(C01), X0 * conj(X1)'
+    legend: 'True'
+    nconnections: '1'
+    ref_level: '0'
+    showports: 'True'
+    update_time: '0.10'
+    vlen: fft_size
+    x_axis_label: 'Sky frequency (Hz), high-side LNB inverted'
+    x_start: sky_axis_start
+    x_step: sky_axis_step
+    y_axis_label: 'Cross phase (deg)'
+    ymin: '-180'
+    ymax: '180'
+  states:
+    enabled: true
+
+connections:
+- [uhd_usrp_source_0, '0', rx0_stream_to_vector, '0']
+- [uhd_usrp_source_0, '1', rx1_stream_to_vector, '0']
+- [rx0_stream_to_vector, '0', rx0_fft, '0']
+- [rx1_stream_to_vector, '0', rx1_fft, '0']
+- [rx0_fft, '0', rx0_mag2, '0']
+- [rx1_fft, '0', rx1_mag2, '0']
+- [rx0_mag2, '0', rx0_power_accum, '0']
+- [rx1_mag2, '0', rx1_power_accum, '0']
+- [rx0_power_accum, '0', rx0_power_db, '0']
+- [rx1_power_accum, '0', rx1_power_db, '0']
+- [rx0_power_db, '0', auto_spectra_sink, '0']
+- [rx1_power_db, '0', auto_spectra_sink, '1']
+- [rx0_fft, '0', cross_multiply_conjugate, '0']
+- [rx1_fft, '0', cross_multiply_conjugate, '1']
+- [cross_multiply_conjugate, '0', cross_accum, '0']
+- [cross_accum, '0', cross_mag, '0']
+- [cross_mag, '0', cross_mag_db, '0']
+- [cross_mag_db, '0', cross_mag_sink, '0']
+- [cross_accum, '0', cross_phase_rad, '0']
+- [cross_phase_rad, '0', cross_phase_deg, '0']
+- [cross_phase_deg, '0', cross_phase_sink, '0']
+
+metadata:
+  file_format: 1
