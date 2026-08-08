@@ -22,6 +22,8 @@ options:
     thread_safe_setters: ''
     title: 'FX Interferometer V1 Stage 1-3'
     window_size: ''
+  states:
+    enabled: true
 
 blocks:
 - name: samp_rate
