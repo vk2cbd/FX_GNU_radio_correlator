@@ -363,7 +363,7 @@ blocks:
   parameters:
     affinity: ''
     alias: ''
-    const: 180.0/math.pi
+    const: '[57.29577951308232]*fft_size'
     maxoutbuf: '0'
     minoutbuf: '0'
     type: float
