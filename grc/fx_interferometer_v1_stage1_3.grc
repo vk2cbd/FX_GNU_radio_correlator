@@ -264,7 +264,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1992, 408.0]
+    coordinate: [1984, 432.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -544,7 +544,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [608, 192.0]
+    coordinate: [528, 168.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -561,7 +561,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1384, 320.0]
+    coordinate: [936, 272.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -580,7 +580,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1584, 312.0]
+    coordinate: [1216, 264.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -599,7 +599,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1784, 352.0]
+    coordinate: [1512, 296.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -618,7 +618,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [424, 280.0]
+    coordinate: [288, 208.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -640,7 +640,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [696, 472.0]
+    coordinate: [536, 360.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -657,7 +657,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1344, 544.0]
+    coordinate: [944, 400.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -676,7 +676,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1576, 456.0]
+    coordinate: [1200, 400.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -695,7 +695,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [1776, 464.0]
+    coordinate: [1512, 440.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -714,7 +714,7 @@ blocks:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [376, 592.0]
+    coordinate: [296, 400.0]
     enabled: true
     rotation: 0
     state: enabled
