@@ -252,9 +252,9 @@ blocks:
     width7: '1'
     width8: '1'
     width9: '1'
-    x_axis_label: Sky frequency (Hz), high-side LNB inverted
-    x_start: sky_axis_start
-    x_step: sky_axis_step
+    x_axis_label: Sky frequency (GHz)
+    x_start: sky_axis_start/1e9
+    x_step: sky_axis_step/1e9
     x_units: '""'
     y_axis_label: Relative power (dB)
     y_units: '""'
@@ -382,9 +382,9 @@ blocks:
     width7: '1'
     width8: '1'
     width9: '1'
-    x_axis_label: Sky frequency (Hz), high-side LNB inverted
-    x_start: sky_axis_start
-    x_step: sky_axis_step
+    x_axis_label: Sky frequency (GHz)
+    x_start: sky_axis_start/1e9
+    x_step: sky_axis_step/1e9
     x_units: '""'
     y_axis_label: Relative cross magnitude (dB)
     y_units: '""'
@@ -510,9 +510,9 @@ blocks:
     width7: '1'
     width8: '1'
     width9: '1'
-    x_axis_label: Sky frequency (Hz), high-side LNB inverted
-    x_start: sky_axis_start
-    x_step: sky_axis_step
+    x_axis_label: Sky frequency (GHz)
+    x_start: sky_axis_start/1e9
+    x_step: sky_axis_step/1e9
     x_units: '""'
     y_axis_label: Cross phase (deg)
     y_units: '""'
