@@ -287,6 +287,168 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: phase_slope_delay_estimator
+  id: epy_block
+  parameters:
+    _source_code: |
+      import numpy as np
+      from gnuradio import gr
+
+
+      class blk(gr.sync_block):
+          """Stage 4 phase-slope / differential-delay estimator.
+
+          Fits unwrapped C01 phase against increasing B210 baseband/IF
+          frequency. Cross-spectrum convention is C01 = X0 * conj(X1).
+          Provisional sign convention: positive RX1 delay relative to RX0
+          should produce positive phase slope versus increasing IF/baseband
+          frequency and positive reported differential delay.
+          """
+
+          def __init__(self, fft_size=4096, samp_rate=30.72e6):
+              self.fft_size = int(fft_size)
+              self.samp_rate = float(samp_rate)
+              gr.sync_block.__init__(
+                  self,
+                  name='Phase Slope / Delay Estimator',
+                  in_sig=[(np.complex64, self.fft_size)],
+                  out_sig=[np.float32, np.float32, np.float32],
+              )
+              self._f = (
+                  (np.arange(self.fft_size, dtype=np.float64) - self.fft_size / 2.0)
+                  * self.samp_rate
+                  / self.fft_size
+              )
+
+          def work(self, input_items, output_items):
+              spectra = input_items[0]
+              delay_ns = output_items[0]
+              slope_deg_per_mhz = output_items[1]
+              fit_rms_deg = output_items[2]
+
+              for i, c01 in enumerate(spectra):
+                  phase = np.angle(c01)
+                  phase_unwrapped = np.unwrap(phase).astype(np.float64)
+                  slope, intercept = np.polyfit(self._f, phase_unwrapped, 1)
+                  phase_fit = slope * self._f + intercept
+                  residual = phase_unwrapped - phase_fit
+
+                  delay_ns[i] = np.float32((slope / (2.0 * np.pi)) * 1e9)
+                  slope_deg_per_mhz[i] = np.float32(slope * (180.0 / np.pi) * 1e6)
+                  fit_rms_deg[i] = np.float32(
+                      np.sqrt(np.mean(residual * residual)) * (180.0 / np.pi)
+                  )
+
+              return len(spectra)
+    affinity: ''
+    alias: ''
+    comment: 'Stage 4 only: low-rate estimator after cross_accum. Fits against increasing baseband/IF frequency, not displayed sky frequency.'
+    fft_size: fft_size
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+  states:
+    _io_cache: ('Phase Slope / Delay Estimator', 'blk', [('fft_size', '4096'), ('samp_rate',
+      '30.72e6')], [('0', 'complex', 4096)], [('0', 'float', 1), ('1', 'float',
+      1), ('2', 'float', 1)], 'Stage 4 phase-slope / differential-delay estimator.',
+      ['fft_size', 'samp_rate'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1192, -160.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: delay_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: '("blue", "red")'
+    comment: 'Stage 4 estimated differential delay from phase slope.'
+    factor1: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Differential Delay
+    max: '100'
+    maxoutbuf: '0'
+    min: '-100'
+    minoutbuf: '0'
+    name: '"Differential Delay (ns)"'
+    nconnections: '1'
+    type: float
+    unit1: ns
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1512, -208.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: phase_slope_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: '("blue", "red")'
+    comment: 'Stage 4 phase slope in degrees per MHz.'
+    factor1: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Phase Slope
+    max: '1000'
+    maxoutbuf: '0'
+    min: '-1000'
+    minoutbuf: '0'
+    name: '"Phase Slope (deg/MHz)"'
+    nconnections: '1'
+    type: float
+    unit1: deg/MHz
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1512, -96.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: phase_fit_rms_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: '("blue", "red")'
+    comment: 'Stage 4 RMS residual of linear phase fit.'
+    factor1: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Phase Fit RMS
+    max: '180'
+    maxoutbuf: '0'
+    min: '0'
+    minoutbuf: '0'
+    name: '"Phase Fit RMS (deg)"'
+    nconnections: '1'
+    type: float
+    unit1: deg
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1512, 16.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: cross_mag
   id: blocks_complex_to_mag
   parameters:
@@ -1158,12 +1320,16 @@ blocks:
 
 connections:
 - [cross_accum, '0', cross_mag, '0']
+- [cross_accum, '0', phase_slope_delay_estimator, '0']
 - [cross_accum, '0', cross_phase_rad, '0']
 - [cross_mag, '0', cross_mag_db, '0']
 - [cross_mag_db, '0', cross_mag_sink, '0']
 - [cross_multiply_conjugate, '0', cross_accum, '0']
 - [cross_phase_deg, '0', cross_phase_sink, '0']
 - [cross_phase_rad, '0', cross_phase_deg, '0']
+- [phase_slope_delay_estimator, '0', delay_number_sink, '0']
+- [phase_slope_delay_estimator, '1', phase_slope_number_sink, '0']
+- [phase_slope_delay_estimator, '2', phase_fit_rms_number_sink, '0']
 - [rx0_fft, '0', cross_multiply_conjugate, '0']
 - [rx0_fft, '0', rx0_mag2, '0']
 - [rx0_mag2, '0', rx0_power_accum, '0']
