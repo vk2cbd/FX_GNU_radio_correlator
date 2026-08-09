@@ -6,9 +6,13 @@ Read `FX_CORRELATOR_SPEC.md` before making architectural or DSP changes.
 If implementation details conflict with the specification, stop and report the conflict rather than silently changing the design.
 
 ## Current milestone
-The current task is Stage 1-3 only: prove a stable, coherent two-channel FX engine using one Ettus B210.
+The current task is Stage 5 only: add source/site/time astronomy coordinates.
 
-Do not implement astronomy geometry, delay correction, fringe stopping, calibration, logging, imaging or OOT modules until Stage 1-3 validation passes.
+Stage 1-4 coherent FX engine and differential-delay estimator are validated on the real B210 system.
+
+Stage 5 may implement source selection, site coordinates, time, LMST, hour angle, apparent RA/Dec, azimuth and elevation.
+
+Do not implement geometric-delay correction, uvw correction, fringe stopping, calibration, logging, imaging or OOT modules until Stage 5 coordinate validation passes.
 
 ## Target environment
 - Ubuntu 24.04.4

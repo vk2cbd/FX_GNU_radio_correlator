@@ -193,6 +193,110 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: site_lat_deg
+  id: variable
+  parameters:
+    comment: 'Stage 5 observing site latitude, degrees north positive.'
+    value: '-32.724'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [552, 824.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: site_lon_deg
+  id: variable
+  parameters:
+    comment: 'Stage 5 observing site longitude, degrees east positive.'
+    value: '+152.130167'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 824.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: site_height_m
+  id: variable
+  parameters:
+    comment: 'Stage 5 observing site height above ellipsoid/metres, initial value.'
+    value: '0.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [984, 824.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: source_mode
+  id: variable_qtgui_chooser
+  parameters:
+    comment: 'Stage 5 source selector: 0=Sun, 1=Manual ICRS RA/Dec.'
+    gui_hint: ''
+    label: Source
+    label0: Sun
+    label1: Manual RA/Dec
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: '0'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[0, 1]'
+    orient: Qt.QHBoxLayout
+    type: int
+    value: '0'
+    widget: combo_box
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [552, 936.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: manual_ra_hours
+  id: variable_qtgui_entry
+  parameters:
+    comment: 'Stage 5 manual source ICRS right ascension, decimal hours.'
+    entry_signal: editingFinished
+    gui_hint: ''
+    label: Manual RA (h)
+    type: real
+    value: '5.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [760, 936.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: manual_dec_deg
+  id: variable_qtgui_entry
+  parameters:
+    comment: 'Stage 5 manual source ICRS declination, decimal degrees.'
+    entry_signal: editingFinished
+    gui_hint: ''
+    label: Manual Dec (deg)
+    type: real
+    value: '-30.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [984, 936.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: auto_spectra_sink
   id: qtgui_vector_sink_f
   parameters:
@@ -284,6 +388,248 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [1192, 32.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: astronomy_coordinate_engine
+  id: epy_block
+  parameters:
+    _source_code: |
+      import time
+
+      import numpy as np
+      from gnuradio import gr
+
+      from astropy import units as u
+      from astropy.coordinates import AltAz, EarthLocation, SkyCoord, TETE, get_sun
+      from astropy.time import Time
+      from astropy.utils import iers
+
+      iers.conf.auto_download = False
+      iers.conf.iers_degraded_accuracy = 'warn'
+
+
+      class blk(gr.sync_block):
+          """Stage 5 source/site/time astronomy-coordinate engine."""
+
+          def __init__(
+              self,
+              fft_size=4096,
+              site_lat_deg=-32.724,
+              site_lon_deg=152.130167,
+              site_height_m=0.0,
+              source_mode=0,
+              manual_ra_hours=5.0,
+              manual_dec_deg=-30.0,
+          ):
+              self.fft_size = int(fft_size)
+              self.site_lat_deg = float(site_lat_deg)
+              self.site_lon_deg = float(site_lon_deg)
+              self.site_height_m = float(site_height_m)
+              self.source_mode = int(source_mode)
+              self.manual_ra_hours = float(manual_ra_hours)
+              self.manual_dec_deg = float(manual_dec_deg)
+              self._last_update = 0.0
+              self._cache = np.full(7, np.nan, dtype=np.float32)
+              gr.sync_block.__init__(
+                  self,
+                  name='Astronomy Coordinate Engine',
+                  in_sig=[(np.complex64, self.fft_size)],
+                  out_sig=[
+                      np.float32,
+                      np.float32,
+                      np.float32,
+                      np.float32,
+                      np.float32,
+                      np.float32,
+                      np.float32,
+                  ],
+              )
+
+          def _invalidate(self):
+              self._last_update = 0.0
+
+          def set_site_lat_deg(self, value):
+              self.site_lat_deg = float(value)
+              self._invalidate()
+
+          def set_site_lon_deg(self, value):
+              self.site_lon_deg = float(value)
+              self._invalidate()
+
+          def set_site_height_m(self, value):
+              self.site_height_m = float(value)
+              self._invalidate()
+
+          def set_source_mode(self, value):
+              self.source_mode = int(value)
+              self._invalidate()
+
+          def set_manual_ra_hours(self, value):
+              self.manual_ra_hours = float(value)
+              self._invalidate()
+
+          def set_manual_dec_deg(self, value):
+              self.manual_dec_deg = float(value)
+              self._invalidate()
+
+          def _compute(self):
+              location = EarthLocation(
+                  lat=self.site_lat_deg * u.deg,
+                  lon=self.site_lon_deg * u.deg,
+                  height=self.site_height_m * u.m,
+              )
+              obstime = Time.now()
+              obstime.location = location
+
+              if int(self.source_mode) == 0:
+                  source_coord = get_sun(obstime)
+              else:
+                  source_coord = SkyCoord(
+                      ra=self.manual_ra_hours * u.hourangle,
+                      dec=self.manual_dec_deg * u.deg,
+                      frame='icrs',
+                  )
+
+              apparent = source_coord.transform_to(TETE(obstime=obstime, location=location))
+              altaz = source_coord.transform_to(
+                  AltAz(obstime=obstime, location=location, pressure=0 * u.hPa)
+              )
+
+              utc_dt = obstime.utc.datetime
+              utc_hour = (
+                  utc_dt.hour
+                  + utc_dt.minute / 60.0
+                  + (utc_dt.second + utc_dt.microsecond * 1e-6) / 3600.0
+              )
+              lmst_hour = (
+                  obstime.sidereal_time('apparent', longitude=self.site_lon_deg * u.deg).hour
+                  % 24.0
+              )
+              apparent_ra_hour = apparent.ra.hour % 24.0
+              apparent_dec_deg = apparent.dec.deg
+              ha_hour = ((lmst_hour - apparent_ra_hour + 12.0) % 24.0) - 12.0
+
+              self._cache = np.array(
+                  [
+                      utc_hour,
+                      lmst_hour,
+                      ha_hour,
+                      altaz.az.deg % 360.0,
+                      altaz.alt.deg,
+                      apparent_ra_hour,
+                      apparent_dec_deg,
+                  ],
+                  dtype=np.float32,
+              )
+              self._last_update = time.monotonic()
+
+          def work(self, input_items, output_items):
+              nout = len(input_items[0])
+              if nout == 0:
+                  return 0
+
+              if self._last_update == 0.0 or time.monotonic() - self._last_update >= 1.0:
+                  try:
+                      self._compute()
+                  except Exception:
+                      self._cache = np.full(7, np.nan, dtype=np.float32)
+                      self._last_update = time.monotonic()
+
+              for idx, value in enumerate(self._cache):
+                  output_items[idx][:nout] = value
+
+              return nout
+    affinity: ''
+    alias: ''
+    comment: 'Stage 5 only: low-rate Astropy source/site/time coordinates after cross_accum. Does not correct C01.'
+    fft_size: fft_size
+    manual_dec_deg: manual_dec_deg
+    manual_ra_hours: manual_ra_hours
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    site_height_m: site_height_m
+    site_lat_deg: site_lat_deg
+    site_lon_deg: site_lon_deg
+    source_mode: source_mode
+  states:
+    _io_cache: ('Astronomy Coordinate Engine', 'blk', [('fft_size', '4096'), ('site_lat_deg',
+      '-32.724'), ('site_lon_deg', '152.130167'), ('site_height_m', '0.0'), ('source_mode',
+      '0'), ('manual_ra_hours', '5.0'), ('manual_dec_deg', '-30.0')], [('0', 'complex',
+      4096)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1), ('3',
+      'float', 1), ('4', 'float', 1), ('5', 'float', 1), ('6', 'float', 1)],
+      'Stage 5 source/site/time astronomy-coordinate engine.', ['fft_size', 'site_lat_deg',
+      'site_lon_deg', 'site_height_m', 'source_mode', 'manual_ra_hours', 'manual_dec_deg'])
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1192, -520.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: astronomy_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: ("blue", "red")
+    color10: ("black", "black")
+    color2: ("blue", "red")
+    color3: ("blue", "red")
+    color4: ("blue", "red")
+    color5: ("blue", "red")
+    color6: ("blue", "red")
+    color7: ("blue", "red")
+    color8: ("black", "black")
+    color9: ("black", "black")
+    comment: 'Stage 5 astronomy/source numerical displays.'
+    factor1: '1'
+    factor10: '1'
+    factor2: '1'
+    factor3: '1'
+    factor4: '1'
+    factor5: '1'
+    factor6: '1'
+    factor7: '1'
+    factor8: '1'
+    factor9: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: UTC
+    label10: ''
+    label2: LMST
+    label3: Hour Angle
+    label4: Azimuth
+    label5: Elevation
+    label6: Apparent RA
+    label7: Apparent Dec
+    label8: ''
+    label9: ''
+    max: '360'
+    maxoutbuf: '0'
+    min: '-180'
+    minoutbuf: '0'
+    name: '"Astronomy / Source Coordinates"'
+    nconnections: '7'
+    type: float
+    unit1: h
+    unit10: ''
+    unit2: h
+    unit3: h
+    unit4: deg
+    unit5: deg
+    unit6: h
+    unit7: deg
+    unit8: ''
+    unit9: ''
+    update_time: '0.5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1512, -520.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -1401,8 +1747,16 @@ blocks:
 
 connections:
 - [cross_accum, '0', cross_mag, '0']
+- [cross_accum, '0', astronomy_coordinate_engine, '0']
 - [cross_accum, '0', cross_phase_rad, '0']
 - [cross_accum, '0', phase_slope_delay_estimator, '0']
+- [astronomy_coordinate_engine, '0', astronomy_number_sink, '0']
+- [astronomy_coordinate_engine, '1', astronomy_number_sink, '1']
+- [astronomy_coordinate_engine, '2', astronomy_number_sink, '2']
+- [astronomy_coordinate_engine, '3', astronomy_number_sink, '3']
+- [astronomy_coordinate_engine, '4', astronomy_number_sink, '4']
+- [astronomy_coordinate_engine, '5', astronomy_number_sink, '5']
+- [astronomy_coordinate_engine, '6', astronomy_number_sink, '6']
 - [cross_mag, '0', cross_mag_db, '0']
 - [cross_mag_db, '0', cross_mag_sink, '0']
 - [cross_multiply_conjugate, '0', cross_accum, '0']

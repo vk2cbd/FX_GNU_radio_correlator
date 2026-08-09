@@ -2,7 +2,7 @@
 
 This procedure validates only the Stage 4 phase-slope / differential-delay estimator added after `cross_accum`.
 
-Do not treat this document or the Windows-side edit as hardware validation. Measurements must be performed on the authoritative Ubuntu GNU Radio 3.10.9.2 / UHD / Ettus B210 system.
+Stage 4 has passed hardware validation on the authoritative Ubuntu GNU Radio 3.10.9.2 / UHD / Ettus B210 system.
 
 ## Scope
 
@@ -60,7 +60,37 @@ phase_fit = slope*f + intercept
 phase_fit_rms_deg = sqrt(mean((phase_unwrapped-phase_fit)**2)) * 180/pi
 ```
 
-## Provisional Sign Convention
+## Hardware Results
+
+The following measurements were made with a common broadband source and the Stage 4 estimator.
+
+### Equal External Cables
+
+```text
+Phase slope = -0.031680 deg/MHz
+Differential delay = -0.088001 ns
+Phase fit RMS = 1.024064 deg
+```
+
+### 345 mm Added To RX0
+
+```text
+Phase slope = -0.672704 deg/MHz
+Differential delay = -1.868621 ns
+Phase fit RMS = 1.252698 deg
+Delta from baseline = -1.780620 ns
+```
+
+### Same 345 mm Cable Added To RX1
+
+```text
+Phase slope = +0.593311 deg/MHz
+Differential delay = +1.648085 ns
+Phase fit RMS = 1.217607 deg
+Delta from baseline = +1.736086 ns
+```
+
+## Confirmed Sign Convention
 
 For:
 
@@ -68,9 +98,11 @@ For:
 C01 = X0 * conj(X1)
 ```
 
-a positive physical delay of RX1 relative to RX0 is provisionally expected to produce positive phase slope versus increasing IF/baseband frequency and therefore positive reported differential delay.
+extra physical/electrical delay in RX1 produces positive phase slope versus increasing IF/baseband frequency and positive reported differential delay.
 
-This sign is provisional until confirmed by the Stage 4 hardware known-delay experiment. Do not silently compensate or invert the sign before that test.
+Extra physical/electrical delay in RX0 produces negative phase slope versus increasing IF/baseband frequency and negative reported differential delay.
+
+Do not silently compensate or invert this sign.
 
 ## Hardware Test
 
@@ -127,7 +159,7 @@ Record:
 
 ### G. Verify RX1 Sign
 
-Verify experimentally whether additional RX1 delay produces positive measured delay, as provisionally expected for `C01 = X0 * conj(X1)`.
+Verify experimentally whether additional RX1 delay produces positive measured delay, as expected for `C01 = X0 * conj(X1)`.
 
 If the sign disagrees, document the result. Do not change the convention without explicit approval.
 
