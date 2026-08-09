@@ -24,6 +24,7 @@ from gnuradio.eng_arg import eng_float, intx
 from gnuradio import eng_notation
 from gnuradio import uhd
 import time
+import fx_interferometer_v1_stage1_3_phase_slope_delay_estimator as phase_slope_delay_estimator  # embedded python block
 import sip
 
 
@@ -109,11 +110,111 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.rx0_power_accum = blocks.integrate_ff(accum_frames, fft_size)
         self.rx0_mag2 = blocks.complex_to_mag_squared(fft_size)
         self.rx0_fft = fft.fft_vcc(fft_size, True, window.blackmanharris(fft_size), True, 1)
+        self.phase_slope_number_sink = qtgui.number_sink(
+            gr.sizeof_float,
+            0,
+            qtgui.NUM_GRAPH_NONE,
+            1,
+            None # parent
+        )
+        self.phase_slope_number_sink.set_update_time(0.25)
+        self.phase_slope_number_sink.set_title("Phase Slope (deg/MHz)")
+
+        labels = ['Phase Slope', '', '', '', '',
+            '', '', '', '', '']
+        units = ['deg/MHz', '', '', '', '',
+            '', '', '', '', '']
+        colors = [("blue", "red"), ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black"),
+            ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black")]
+        factor = [1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1]
+
+        for i in range(1):
+            self.phase_slope_number_sink.set_min(i, -1000)
+            self.phase_slope_number_sink.set_max(i, 1000)
+            self.phase_slope_number_sink.set_color(i, colors[i][0], colors[i][1])
+            if len(labels[i]) == 0:
+                self.phase_slope_number_sink.set_label(i, "Data {0}".format(i))
+            else:
+                self.phase_slope_number_sink.set_label(i, labels[i])
+            self.phase_slope_number_sink.set_unit(i, units[i])
+            self.phase_slope_number_sink.set_factor(i, factor[i])
+
+        self.phase_slope_number_sink.enable_autoscale(True)
+        self._phase_slope_number_sink_win = sip.wrapinstance(self.phase_slope_number_sink.qwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._phase_slope_number_sink_win)
+        self.phase_slope_delay_estimator = phase_slope_delay_estimator.blk(fft_size=fft_size, samp_rate=samp_rate)
+        self.phase_fit_rms_number_sink = qtgui.number_sink(
+            gr.sizeof_float,
+            0,
+            qtgui.NUM_GRAPH_NONE,
+            1,
+            None # parent
+        )
+        self.phase_fit_rms_number_sink.set_update_time(0.25)
+        self.phase_fit_rms_number_sink.set_title("Phase Fit RMS (deg)")
+
+        labels = ['Phase Fit RMS', '', '', '', '',
+            '', '', '', '', '']
+        units = ['deg', '', '', '', '',
+            '', '', '', '', '']
+        colors = [("blue", "red"), ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black"),
+            ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black")]
+        factor = [1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1]
+
+        for i in range(1):
+            self.phase_fit_rms_number_sink.set_min(i, 0)
+            self.phase_fit_rms_number_sink.set_max(i, 180)
+            self.phase_fit_rms_number_sink.set_color(i, colors[i][0], colors[i][1])
+            if len(labels[i]) == 0:
+                self.phase_fit_rms_number_sink.set_label(i, "Data {0}".format(i))
+            else:
+                self.phase_fit_rms_number_sink.set_label(i, labels[i])
+            self.phase_fit_rms_number_sink.set_unit(i, units[i])
+            self.phase_fit_rms_number_sink.set_factor(i, factor[i])
+
+        self.phase_fit_rms_number_sink.enable_autoscale(True)
+        self._phase_fit_rms_number_sink_win = sip.wrapinstance(self.phase_fit_rms_number_sink.qwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._phase_fit_rms_number_sink_win)
+        self.delay_number_sink = qtgui.number_sink(
+            gr.sizeof_float,
+            0,
+            qtgui.NUM_GRAPH_NONE,
+            1,
+            None # parent
+        )
+        self.delay_number_sink.set_update_time(0.25)
+        self.delay_number_sink.set_title("Differential Delay (ns)")
+
+        labels = ['Differential Delay', '', '', '', '',
+            '', '', '', '', '']
+        units = ['ns', '', '', '', '',
+            '', '', '', '', '']
+        colors = [("blue", "red"), ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black"),
+            ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black"), ("black", "black")]
+        factor = [1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1]
+
+        for i in range(1):
+            self.delay_number_sink.set_min(i, -100)
+            self.delay_number_sink.set_max(i, 100)
+            self.delay_number_sink.set_color(i, colors[i][0], colors[i][1])
+            if len(labels[i]) == 0:
+                self.delay_number_sink.set_label(i, "Data {0}".format(i))
+            else:
+                self.delay_number_sink.set_label(i, labels[i])
+            self.delay_number_sink.set_unit(i, units[i])
+            self.delay_number_sink.set_factor(i, factor[i])
+
+        self.delay_number_sink.enable_autoscale(True)
+        self._delay_number_sink_win = sip.wrapinstance(self.delay_number_sink.qwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._delay_number_sink_win)
         self.cross_phase_sink = qtgui.vector_sink_f(
             fft_size,
-            sky_axis_start,
-            sky_axis_step,
-            'Sky frequency (Hz), high-side LNB inverted',
+            (sky_axis_start/1e9),
+            (sky_axis_step/1e9),
+            'Sky frequency (GHz)',
             'Cross phase (deg)',
             "",
             1, # Number of inputs
@@ -153,9 +254,9 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.cross_multiply_conjugate = blocks.multiply_conjugate_cc(fft_size)
         self.cross_mag_sink = qtgui.vector_sink_f(
             fft_size,
-            sky_axis_start,
-            sky_axis_step,
-            'Sky frequency (Hz), high-side LNB inverted',
+            (sky_axis_start/1e9),
+            (sky_axis_step/1e9),
+            'Sky frequency (GHz)',
             'Relative cross magnitude (dB)',
             "",
             1, # Number of inputs
@@ -195,9 +296,9 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.cross_accum = blocks.integrate_cc(accum_frames, fft_size)
         self.auto_spectra_sink = qtgui.vector_sink_f(
             fft_size,
-            sky_axis_start,
-            sky_axis_step,
-            'Sky frequency (Hz), high-side LNB inverted',
+            (sky_axis_start/1e9),
+            (sky_axis_step/1e9),
+            'Sky frequency (GHz)',
             'Relative power (dB)',
             "",
             2, # Number of inputs
@@ -239,11 +340,15 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         ##################################################
         self.connect((self.cross_accum, 0), (self.cross_mag, 0))
         self.connect((self.cross_accum, 0), (self.cross_phase_rad, 0))
+        self.connect((self.cross_accum, 0), (self.phase_slope_delay_estimator, 0))
         self.connect((self.cross_mag, 0), (self.cross_mag_db, 0))
         self.connect((self.cross_mag_db, 0), (self.cross_mag_sink, 0))
         self.connect((self.cross_multiply_conjugate, 0), (self.cross_accum, 0))
         self.connect((self.cross_phase_deg, 0), (self.cross_phase_sink, 0))
         self.connect((self.cross_phase_rad, 0), (self.cross_phase_deg, 0))
+        self.connect((self.phase_slope_delay_estimator, 0), (self.delay_number_sink, 0))
+        self.connect((self.phase_slope_delay_estimator, 2), (self.phase_fit_rms_number_sink, 0))
+        self.connect((self.phase_slope_delay_estimator, 1), (self.phase_slope_number_sink, 0))
         self.connect((self.rx0_fft, 0), (self.cross_multiply_conjugate, 0))
         self.connect((self.rx0_fft, 0), (self.rx0_mag2, 0))
         self.connect((self.rx0_mag2, 0), (self.rx0_power_accum, 0))
@@ -283,6 +388,7 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.set_fft_rate(self.samp_rate/self.fft_size)
         self.set_sky_axis_start(self.lnb_lo-(self.if_cf-self.samp_rate/2))
         self.set_sky_axis_step(-self.samp_rate/self.fft_size)
+        self.phase_slope_delay_estimator.samp_rate = self.samp_rate
         self.uhd_usrp_source_0.set_samp_rate(self.samp_rate)
 
     def get_lnb_lo(self):
@@ -301,6 +407,7 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.set_fft_rate(self.samp_rate/self.fft_size)
         self.set_sky_axis_step(-self.samp_rate/self.fft_size)
         self.cross_phase_deg.set_k([57.29577951308232]*self.fft_size)
+        self.phase_slope_delay_estimator.fft_size = self.fft_size
 
     def get_if_cf(self):
         return self.if_cf
@@ -330,18 +437,18 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
 
     def set_sky_axis_step(self, sky_axis_step):
         self.sky_axis_step = sky_axis_step
-        self.auto_spectra_sink.set_x_axis(self.sky_axis_start, self.sky_axis_step)
-        self.cross_mag_sink.set_x_axis(self.sky_axis_start, self.sky_axis_step)
-        self.cross_phase_sink.set_x_axis(self.sky_axis_start, self.sky_axis_step)
+        self.auto_spectra_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
+        self.cross_mag_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
+        self.cross_phase_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
 
     def get_sky_axis_start(self):
         return self.sky_axis_start
 
     def set_sky_axis_start(self, sky_axis_start):
         self.sky_axis_start = sky_axis_start
-        self.auto_spectra_sink.set_x_axis(self.sky_axis_start, self.sky_axis_step)
-        self.cross_mag_sink.set_x_axis(self.sky_axis_start, self.sky_axis_step)
-        self.cross_phase_sink.set_x_axis(self.sky_axis_start, self.sky_axis_step)
+        self.auto_spectra_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
+        self.cross_mag_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
+        self.cross_phase_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
 
     def get_gain1(self):
         return self.gain1
