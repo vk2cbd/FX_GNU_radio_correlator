@@ -20,7 +20,7 @@ class blk(gr.sync_block):
         fft_size=4096,
         site_lat_deg=-32.724,
         site_lon_deg=152.130167,
-        site_height_m=0.0,
+        site_height_m=70.0,
         source_mode=0,
         manual_ra_hours=5.0,
         manual_dec_deg=-30.0,
@@ -77,20 +77,27 @@ class blk(gr.sync_block):
         self._invalidate()
 
     def _compute(self):
+        site_lat_deg = float(self.site_lat_deg)
+        site_lon_deg = float(self.site_lon_deg)
+        site_height_m = float(self.site_height_m)
+        source_mode = int(self.source_mode)
+        manual_ra_hours = float(self.manual_ra_hours)
+        manual_dec_deg = float(self.manual_dec_deg)
+
         location = EarthLocation(
-            lat=self.site_lat_deg * u.deg,
-            lon=self.site_lon_deg * u.deg,
-            height=self.site_height_m * u.m,
+            lat=site_lat_deg * u.deg,
+            lon=site_lon_deg * u.deg,
+            height=site_height_m * u.m,
         )
         obstime = Time.now()
         obstime.location = location
 
-        if int(self.source_mode) == 0:
+        if source_mode == 0:
             source_coord = get_sun(obstime)
         else:
             source_coord = SkyCoord(
-                ra=self.manual_ra_hours * u.hourangle,
-                dec=self.manual_dec_deg * u.deg,
+                ra=manual_ra_hours * u.hourangle,
+                dec=manual_dec_deg * u.deg,
                 frame='icrs',
             )
 
@@ -106,7 +113,7 @@ class blk(gr.sync_block):
             + (utc_dt.second + utc_dt.microsecond * 1e-6) / 3600.0
         )
         lmst_hour = (
-            obstime.sidereal_time('apparent', longitude=self.site_lon_deg * u.deg).hour
+            obstime.sidereal_time('apparent', longitude=site_lon_deg * u.deg).hour
             % 24.0
         )
         apparent_ra_hour = apparent.ra.hour % 24.0
@@ -135,7 +142,8 @@ class blk(gr.sync_block):
         if self._last_update == 0.0 or time.monotonic() - self._last_update >= 1.0:
             try:
                 self._compute()
-            except Exception:
+            except Exception as exc:
+                print(f"Stage 5 astronomy error: {exc}", flush=True)
                 self._cache = np.full(7, np.nan, dtype=np.float32)
                 self._last_update = time.monotonic()
 

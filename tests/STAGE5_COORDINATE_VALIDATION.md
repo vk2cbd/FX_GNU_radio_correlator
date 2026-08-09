@@ -16,7 +16,7 @@ GRC variables:
 
 - `site_lat_deg = -32.724`
 - `site_lon_deg = +152.130167`
-- `site_height_m = 0.0`
+- `site_height_m = 70`
 
 Longitude is east-positive.
 
@@ -53,6 +53,29 @@ The Stage 5 number sink displays:
 - Manual RA/Dec are ICRS and are transformed at the current observation time/location.
 - Apparent RA/Dec use Astropy `TETE`, an apparent-of-date frame suitable for relating apparent RA to local apparent sidereal time.
 
+## Manual RA/Dec Runtime Types
+
+Under Ubuntu GNU Radio 3.10.9.2, the Manual RA and Manual Dec QT GUI entries are runtime strings. The Embedded Python astronomy coordinate engine explicitly converts runtime parameters on every coordinate calculation:
+
+```python
+site_lat_deg = float(self.site_lat_deg)
+site_lon_deg = float(self.site_lon_deg)
+site_height_m = float(self.site_height_m)
+source_mode = int(self.source_mode)
+manual_ra_hours = float(self.manual_ra_hours)
+manual_dec_deg = float(self.manual_dec_deg)
+```
+
+Decimal manual coordinates are supported, including fractional RA hours such as `5.25` and negative decimal declinations such as `-30.5`.
+
+Astronomy exceptions are printed to the terminal during commissioning:
+
+```text
+Stage 5 astronomy error: ...
+```
+
+The flowgraph continues running and emits `NaN` coordinate values for the failed update rather than fabricating zeros.
+
 ## IERS / Earth Orientation
 
 Astropy's standard Earth-orientation machinery is used. No manual UT1 or polar-motion correction is implemented.
@@ -65,6 +88,8 @@ iers.conf.iers_degraded_accuracy = "warn"
 ```
 
 This avoids relying on live internet during an observation and allows Astropy to use bundled or cached IERS data, but precise observing should use current IERS tables installed or cached before the observing session. If IERS data are stale or outside range, Astropy may warn and coordinate accuracy may degrade.
+
+Ubuntu testing currently produces warnings when local IERS/leap-second data are stale. That is an operational maintenance issue for coordinate precision and is separate from the Manual RA/Dec runtime type bug.
 
 ## Deterministic Tests
 
@@ -83,6 +108,9 @@ The tests check:
 - elevation is within `-90..+90 deg`;
 - Sun coordinates are finite and time-varying;
 - Manual RA/Dec transforms successfully;
+- numeric and string Manual RA/Dec values agree within floating-point tolerance;
+- fractional decimal RA and negative decimal Dec are accepted;
+- Sun -> Manual -> Sun switching does not throw an exception;
 - Stage 4 delay estimator connections remain present;
 - Stage 5 does not replace the existing Stage 1-4 science path connections.
 
@@ -115,7 +143,7 @@ For a chosen UTC on the Ubuntu observing system:
    ```text
    lat = -32.724 deg
    lon = +152.130167 deg
-   height = 0.0 m initially
+   height = 70 m
    ```
 
 2. Select Sun mode in the flowgraph.
