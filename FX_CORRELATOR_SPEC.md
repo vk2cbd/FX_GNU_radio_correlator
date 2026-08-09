@@ -25,7 +25,13 @@ Version 1 shall:
 ## 3. Antennas and baseline
 - Antenna 0: 2.4 m dish, B210 RX0
 - Antenna 1: 1.7 m dish, B210 RX1
-- Initial baseline: approximately 6 m, predominantly east-west
+- Surveyed baseline B01 = r1 - r0 in ENU metres:
+  - E = -5.785 m
+  - N = -0.025 m
+  - U = +0.580 m
+- Antenna 0 is east of antenna 1 and lower than antenna 1.
+- Baseline magnitude is approximately 5.814056 m.
+- Maximum possible absolute geometric delay is approximately 19.393604 ns.
 - Surveyed baseline shall be represented as E/N/U in metres
 - Baseline convention: B01 = r1 - r0
 

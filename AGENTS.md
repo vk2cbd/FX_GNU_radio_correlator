@@ -6,13 +6,15 @@ Read `FX_CORRELATOR_SPEC.md` before making architectural or DSP changes.
 If implementation details conflict with the specification, stop and report the conflict rather than silently changing the design.
 
 ## Current milestone
-The current task is Stage 5 only: add source/site/time astronomy coordinates.
+The current task is Stage 6 only: add surveyed-baseline geometry and predicted geometric delay/fringe quantities.
 
 Stage 1-4 coherent FX engine and differential-delay estimator are validated on the real B210 system.
 
-Stage 5 may implement source selection, site coordinates, time, LMST, hour angle, apparent RA/Dec, azimuth and elevation.
+Stage 5 source/site/time astronomical coordinates, including Sun and decimal Manual RA/Dec, are validated on Ubuntu.
 
-Do not implement geometric-delay correction, uvw correction, fringe stopping, calibration, logging, imaging or OOT modules until Stage 5 coordinate validation passes.
+Stage 6 may calculate and display u/v/w, geometric delay, RX1-RX0 astronomical arrival delay, predicted geometric phase, predicted fringe rate and predicted fringe period.
+
+Do not implement Stage 7 delay correction, uvw correction applied to data, fringe stopping, calibration, logging, imaging or OOT modules until Stage 6 astronomical sign/magnitude validation passes.
 
 ## Target environment
 - Ubuntu 24.04.4
