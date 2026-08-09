@@ -11,7 +11,9 @@
 
 from PyQt5 import Qt
 from gnuradio import qtgui
+from PyQt5.QtCore import QObject, pyqtSlot
 from gnuradio import blocks
+from gnuradio import eng_notation
 from gnuradio import fft
 from gnuradio.fft import window
 from gnuradio import gr
@@ -21,9 +23,9 @@ import signal
 from PyQt5 import Qt
 from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
-from gnuradio import eng_notation
 from gnuradio import uhd
 import time
+import fx_interferometer_v1_stage1_3_astronomy_coordinate_engine as astronomy_coordinate_engine  # embedded python block
 import fx_interferometer_v1_stage1_3_phase_slope_delay_estimator as phase_slope_delay_estimator  # embedded python block
 import sip
 
@@ -70,9 +72,15 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.fft_size = fft_size = 4096
         self.if_cf = if_cf = lnb_lo-sky_cf
         self.fft_rate = fft_rate = samp_rate/fft_size
-        self.accum_time = accum_time = 0.01
+        self.accum_time = accum_time = 0.1
+        self.source_mode = source_mode = 0
         self.sky_axis_step = sky_axis_step = -samp_rate/fft_size
         self.sky_axis_start = sky_axis_start = lnb_lo-(if_cf-samp_rate/2)
+        self.site_lon_deg = site_lon_deg = +152.130167
+        self.site_lat_deg = site_lat_deg = -32.724
+        self.site_height_m = site_height_m = 70
+        self.manual_ra_hours = manual_ra_hours = '5.0'
+        self.manual_dec_deg = manual_dec_deg = '-30.0'
         self.gain1 = gain1 = 40
         self.gain0 = gain0 = 40
         self.accum_frames = accum_frames = int(round(fft_rate*accum_time))
@@ -81,6 +89,36 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         # Blocks
         ##################################################
 
+        # Create the options list
+        self._source_mode_options = [0, 1]
+        # Create the labels list
+        self._source_mode_labels = ['Sun', 'Manual RA/Dec']
+        # Create the combo box
+        self._source_mode_tool_bar = Qt.QToolBar(self)
+        self._source_mode_tool_bar.addWidget(Qt.QLabel("Source" + ": "))
+        self._source_mode_combo_box = Qt.QComboBox()
+        self._source_mode_tool_bar.addWidget(self._source_mode_combo_box)
+        for _label in self._source_mode_labels: self._source_mode_combo_box.addItem(_label)
+        self._source_mode_callback = lambda i: Qt.QMetaObject.invokeMethod(self._source_mode_combo_box, "setCurrentIndex", Qt.Q_ARG("int", self._source_mode_options.index(i)))
+        self._source_mode_callback(self.source_mode)
+        self._source_mode_combo_box.currentIndexChanged.connect(
+            lambda i: self.set_source_mode(self._source_mode_options[i]))
+        # Create the radio buttons
+        self.top_layout.addWidget(self._source_mode_tool_bar)
+        self._manual_ra_hours_tool_bar = Qt.QToolBar(self)
+        self._manual_ra_hours_tool_bar.addWidget(Qt.QLabel("Manual RA (h)" + ": "))
+        self._manual_ra_hours_line_edit = Qt.QLineEdit(str(self.manual_ra_hours))
+        self._manual_ra_hours_tool_bar.addWidget(self._manual_ra_hours_line_edit)
+        self._manual_ra_hours_line_edit.editingFinished.connect(
+            lambda: self.set_manual_ra_hours(str(str(self._manual_ra_hours_line_edit.text()))))
+        self.top_layout.addWidget(self._manual_ra_hours_tool_bar)
+        self._manual_dec_deg_tool_bar = Qt.QToolBar(self)
+        self._manual_dec_deg_tool_bar.addWidget(Qt.QLabel("Manual Dec (deg)" + ": "))
+        self._manual_dec_deg_line_edit = Qt.QLineEdit(str(self.manual_dec_deg))
+        self._manual_dec_deg_tool_bar.addWidget(self._manual_dec_deg_line_edit)
+        self._manual_dec_deg_line_edit.editingFinished.connect(
+            lambda: self.set_manual_dec_deg(str(str(self._manual_dec_deg_line_edit.text()))))
+        self.top_layout.addWidget(self._manual_dec_deg_tool_bar)
         self.uhd_usrp_source_0 = uhd.usrp_source(
             ",".join(('', "num_recv_frames=256")),
             uhd.stream_args(
@@ -333,11 +371,53 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
 
         self._auto_spectra_sink_win = sip.wrapinstance(self.auto_spectra_sink.qwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._auto_spectra_sink_win)
+        self.astronomy_number_sink = qtgui.number_sink(
+            gr.sizeof_float,
+            0,
+            qtgui.NUM_GRAPH_NONE,
+            7,
+            None # parent
+        )
+        self.astronomy_number_sink.set_update_time(0.5)
+        self.astronomy_number_sink.set_title("Astronomy / Source Coordinates")
+
+        labels = ['UTC', 'LMST', 'Hour Angle', 'Azimuth', 'Elevation',
+            'Apparent RA', 'Apparent Dec', '', '', '']
+        units = ['h', 'h', 'h', 'deg', 'deg',
+            'h', 'deg', '', '', '']
+        colors = [("blue", "red"), ("blue", "red"), ("blue", "red"), ("blue", "red"), ("blue", "red"),
+            ("blue", "red"), ("blue", "red"), ("black", "black"), ("black", "black"), ("black", "black")]
+        factor = [1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1]
+
+        for i in range(7):
+            self.astronomy_number_sink.set_min(i, -180)
+            self.astronomy_number_sink.set_max(i, 360)
+            self.astronomy_number_sink.set_color(i, colors[i][0], colors[i][1])
+            if len(labels[i]) == 0:
+                self.astronomy_number_sink.set_label(i, "Data {0}".format(i))
+            else:
+                self.astronomy_number_sink.set_label(i, labels[i])
+            self.astronomy_number_sink.set_unit(i, units[i])
+            self.astronomy_number_sink.set_factor(i, factor[i])
+
+        self.astronomy_number_sink.enable_autoscale(True)
+        self._astronomy_number_sink_win = sip.wrapinstance(self.astronomy_number_sink.qwidget(), Qt.QWidget)
+        self.top_layout.addWidget(self._astronomy_number_sink_win)
+        self.astronomy_coordinate_engine = astronomy_coordinate_engine.blk(fft_size=fft_size, site_lat_deg=site_lat_deg, site_lon_deg=site_lon_deg, site_height_m=site_height_m, source_mode=source_mode, manual_ra_hours=manual_ra_hours, manual_dec_deg=manual_dec_deg)
 
 
         ##################################################
         # Connections
         ##################################################
+        self.connect((self.astronomy_coordinate_engine, 1), (self.astronomy_number_sink, 1))
+        self.connect((self.astronomy_coordinate_engine, 5), (self.astronomy_number_sink, 5))
+        self.connect((self.astronomy_coordinate_engine, 6), (self.astronomy_number_sink, 6))
+        self.connect((self.astronomy_coordinate_engine, 0), (self.astronomy_number_sink, 0))
+        self.connect((self.astronomy_coordinate_engine, 3), (self.astronomy_number_sink, 3))
+        self.connect((self.astronomy_coordinate_engine, 4), (self.astronomy_number_sink, 4))
+        self.connect((self.astronomy_coordinate_engine, 2), (self.astronomy_number_sink, 2))
+        self.connect((self.cross_accum, 0), (self.astronomy_coordinate_engine, 0))
         self.connect((self.cross_accum, 0), (self.cross_mag, 0))
         self.connect((self.cross_accum, 0), (self.cross_phase_rad, 0))
         self.connect((self.cross_accum, 0), (self.phase_slope_delay_estimator, 0))
@@ -406,6 +486,7 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.fft_size = fft_size
         self.set_fft_rate(self.samp_rate/self.fft_size)
         self.set_sky_axis_step(-self.samp_rate/self.fft_size)
+        self.astronomy_coordinate_engine.fft_size = self.fft_size
         self.cross_phase_deg.set_k([57.29577951308232]*self.fft_size)
         self.phase_slope_delay_estimator.fft_size = self.fft_size
 
@@ -432,6 +513,14 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.accum_time = accum_time
         self.set_accum_frames(int(round(self.fft_rate*self.accum_time)))
 
+    def get_source_mode(self):
+        return self.source_mode
+
+    def set_source_mode(self, source_mode):
+        self.source_mode = source_mode
+        self._source_mode_callback(self.source_mode)
+        self.astronomy_coordinate_engine.source_mode = self.source_mode
+
     def get_sky_axis_step(self):
         return self.sky_axis_step
 
@@ -449,6 +538,43 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.auto_spectra_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
         self.cross_mag_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
         self.cross_phase_sink.set_x_axis((self.sky_axis_start/1e9), (self.sky_axis_step/1e9))
+
+    def get_site_lon_deg(self):
+        return self.site_lon_deg
+
+    def set_site_lon_deg(self, site_lon_deg):
+        self.site_lon_deg = site_lon_deg
+        self.astronomy_coordinate_engine.site_lon_deg = self.site_lon_deg
+
+    def get_site_lat_deg(self):
+        return self.site_lat_deg
+
+    def set_site_lat_deg(self, site_lat_deg):
+        self.site_lat_deg = site_lat_deg
+        self.astronomy_coordinate_engine.site_lat_deg = self.site_lat_deg
+
+    def get_site_height_m(self):
+        return self.site_height_m
+
+    def set_site_height_m(self, site_height_m):
+        self.site_height_m = site_height_m
+        self.astronomy_coordinate_engine.site_height_m = self.site_height_m
+
+    def get_manual_ra_hours(self):
+        return self.manual_ra_hours
+
+    def set_manual_ra_hours(self, manual_ra_hours):
+        self.manual_ra_hours = manual_ra_hours
+        Qt.QMetaObject.invokeMethod(self._manual_ra_hours_line_edit, "setText", Qt.Q_ARG("QString", str(self.manual_ra_hours)))
+        self.astronomy_coordinate_engine.manual_ra_hours = self.manual_ra_hours
+
+    def get_manual_dec_deg(self):
+        return self.manual_dec_deg
+
+    def set_manual_dec_deg(self, manual_dec_deg):
+        self.manual_dec_deg = manual_dec_deg
+        Qt.QMetaObject.invokeMethod(self._manual_dec_deg_line_edit, "setText", Qt.Q_ARG("QString", str(self.manual_dec_deg)))
+        self.astronomy_coordinate_engine.manual_dec_deg = self.manual_dec_deg
 
     def get_gain1(self):
         return self.gain1
