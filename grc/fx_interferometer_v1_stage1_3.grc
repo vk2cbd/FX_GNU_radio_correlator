@@ -88,6 +88,19 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: phase_fit_edge_exclude_pct
+  id: variable
+  parameters:
+    comment: 'Stage 4 phase fit edge exclusion percentage from each end of FFT spectrum.'
+    value: '7.5'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 1512.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: gain0
   id: variable
   parameters:
@@ -1166,30 +1179,7 @@ blocks:
 - name: phase_slope_delay_estimator
   id: epy_block
   parameters:
-    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
-      \    \"\"\"Stage 4 phase-slope / differential-delay estimator.\n\n    Fits unwrapped\
-      \ C01 phase against increasing B210 baseband/IF\n    frequency. Cross-spectrum\
-      \ convention is C01 = X0 * conj(X1).\n    Provisional sign convention: positive\
-      \ RX1 delay relative to RX0\n    should produce positive phase slope versus\
-      \ increasing IF/baseband\n    frequency and positive reported differential delay.\n\
-      \    \"\"\"\n\n    def __init__(self, fft_size=4096, samp_rate=30.72e6):\n \
-      \       self.fft_size = int(fft_size)\n        self.samp_rate = float(samp_rate)\n\
-      \        gr.sync_block.__init__(\n            self,\n            name='Phase\
-      \ Slope / Delay Estimator',\n            in_sig=[(np.complex64, self.fft_size)],\n\
-      \            out_sig=[np.float32, np.float32, np.float32],\n        )\n    \
-      \    self._f = (\n            (np.arange(self.fft_size, dtype=np.float64) -\
-      \ self.fft_size / 2.0)\n            * self.samp_rate\n            / self.fft_size\n\
-      \        )\n\n    def work(self, input_items, output_items):\n        spectra\
-      \ = input_items[0]\n        delay_ns = output_items[0]\n        slope_deg_per_mhz\
-      \ = output_items[1]\n        fit_rms_deg = output_items[2]\n\n        for i,\
-      \ c01 in enumerate(spectra):\n            phase = np.angle(c01)\n          \
-      \  phase_unwrapped = np.unwrap(phase).astype(np.float64)\n            slope,\
-      \ intercept = np.polyfit(self._f, phase_unwrapped, 1)\n            phase_fit\
-      \ = slope * self._f + intercept\n            residual = phase_unwrapped - phase_fit\n\
-      \n            delay_ns[i] = np.float32((slope / (2.0 * np.pi)) * 1e9)\n    \
-      \        slope_deg_per_mhz[i] = np.float32(slope * (180.0 / np.pi) * 1e6)\n\
-      \            fit_rms_deg[i] = np.float32(\n                np.sqrt(np.mean(residual\
-      \ * residual)) * (180.0 / np.pi)\n            )\n\n        return len(spectra)\n"
+    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 4 phase-slope / differential-delay estimator.\n\n    Fits unwrapped C01 phase against increasing B210 baseband/IF\n    frequency. Cross-spectrum convention is C01 = X0 * conj(X1).\n    Provisional sign convention: positive RX1 delay relative to RX0\n    should produce positive phase slope versus increasing IF/baseband\n    frequency and positive reported differential delay.\n    \"\"\"\n\n    def __init__(self, fft_size=4096, samp_rate=30.72e6, phase_fit_edge_exclude_pct=7.5):\n        self.fft_size = int(fft_size)\n        self.samp_rate = float(samp_rate)\n        self.phase_fit_edge_exclude_pct = float(phase_fit_edge_exclude_pct)\n        gr.sync_block.__init__(\n            self,\n            name='Phase Slope / Delay Estimator',\n            in_sig=[(np.complex64, self.fft_size)],\n            out_sig=[np.float32, np.float32, np.float32],\n        )\n        self._f = (\n            (np.arange(self.fft_size, dtype=np.float64) - self.fft_size / 2.0)\n            * self.samp_rate\n            / self.fft_size\n        )\n\n    def set_phase_fit_edge_exclude_pct(self, value):\n        self.phase_fit_edge_exclude_pct = float(value)\n\n    def _fit_vectors(self, c01):\n        edge_pct = float(self.phase_fit_edge_exclude_pct)\n        if edge_pct < 0.0:\n            print(\n                f\"Stage 4 phase fit warning: edge exclusion {edge_pct}% is below 0%; using 0%.\",\n                flush=True,\n            )\n            edge_pct = 0.0\n        elif edge_pct >= 50.0:\n            print(\n                f\"Stage 4 phase fit warning: edge exclusion {edge_pct}% is >= 50%; using 49%.\",\n                flush=True,\n            )\n            edge_pct = 49.0\n\n        n_bins = len(c01)\n        n_edge = int(n_bins * (edge_pct / 100.0))\n        n_fit = n_bins - 2 * n_edge\n        if n_fit < 2:\n            print(\n                f\"Stage 4 phase fit warning: edge exclusion leaves {n_fit} bins; using full spectrum.\",\n                flush=True,\n            )\n            n_edge = 0\n\n        if n_edge > 0:\n            return c01[n_edge:-n_edge], self._f[n_edge:-n_edge]\n        return c01, self._f\n\n    def work(self, input_items, output_items):\n        spectra = input_items[0]\n        delay_ns = output_items[0]\n        slope_deg_per_mhz = output_items[1]\n        fit_rms_deg = output_items[2]\n\n        for i, c01 in enumerate(spectra):\n            c01_fit, f_fit = self._fit_vectors(c01)\n            phase = np.angle(c01_fit)\n            phase_unwrapped = np.unwrap(phase).astype(np.float64)\n            slope, intercept = np.polyfit(f_fit, phase_unwrapped, 1)\n            phase_fit = slope * f_fit + intercept\n            residual = phase_unwrapped - phase_fit\n\n            delay_ns[i] = np.float32((slope / (2.0 * np.pi)) * 1e9)\n            slope_deg_per_mhz[i] = np.float32(slope * (180.0 / np.pi) * 1e6)\n            fit_rms_deg[i] = np.float32(\n                np.sqrt(np.mean(residual * residual)) * (180.0 / np.pi)\n            )\n\n        return len(spectra)\n"
     affinity: ''
     alias: ''
     comment: 'Stage 4 only: low-rate estimator after cross_accum. Fits against increasing
@@ -1197,16 +1187,18 @@ blocks:
     fft_size: fft_size
     maxoutbuf: '0'
     minoutbuf: '0'
+    phase_fit_edge_exclude_pct: phase_fit_edge_exclude_pct
     samp_rate: samp_rate
   states:
     _io_cache: '(''Phase Slope / Delay Estimator'', ''blk'', [(''fft_size'', ''4096''),
-      (''samp_rate'', ''30720000.0'')], [(''0'', ''complex'', 4096)], [(''0'', ''float'',
-      1), (''1'', ''float'', 1), (''2'', ''float'', 1)], ''Stage 4 phase-slope / differential-delay
+      (''samp_rate'', ''30720000.0''), (''phase_fit_edge_exclude_pct'', ''7.5'')],
+      [(''0'', ''complex'', 4096)], [(''0'', ''float'', 1), (''1'', ''float'',
+      1), (''2'', ''float'', 1)], ''Stage 4 phase-slope / differential-delay
       estimator.\n\n    Fits unwrapped C01 phase against increasing B210 baseband/IF\n    frequency.
       Cross-spectrum convention is C01 = X0 * conj(X1).\n    Provisional sign convention:
       positive RX1 delay relative to RX0\n    should produce positive phase slope
       versus increasing IF/baseband\n    frequency and positive reported differential
-      delay.\n    '', [''fft_size'', ''samp_rate''])'
+      delay.\n    '', [''fft_size'', ''samp_rate'', ''phase_fit_edge_exclude_pct''])'
     bus_sink: false
     bus_source: false
     bus_structure: null
