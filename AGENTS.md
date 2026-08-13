@@ -6,15 +6,17 @@ Read `FX_CORRELATOR_SPEC.md` before making architectural or DSP changes.
 If implementation details conflict with the specification, stop and report the conflict rather than silently changing the design.
 
 ## Current milestone
-The current task is Stage 6 only: add surveyed-baseline geometry and predicted geometric delay/fringe quantities.
+The current task is Stage 7 only: frequency-domain delay-slope correction.
 
 Stage 1-4 coherent FX engine and differential-delay estimator are validated on the real B210 system.
 
 Stage 5 source/site/time astronomical coordinates, including Sun and decimal Manual RA/Dec, are validated on Ubuntu.
 
-Stage 6 may calculate and display u/v/w, geometric delay, RX1-RX0 astronomical arrival delay, predicted geometric phase, predicted fringe rate and predicted fringe period.
+Stage 6 surveyed-baseline geometry and astronomical sign/magnitude validation have passed sufficiently to permit Stage 7.
 
-Do not implement Stage 7 delay correction, uvw correction applied to data, fringe stopping, calibration, logging, imaging or OOT modules until Stage 6 astronomical sign/magnitude validation passes.
+Stage 7 may calculate and display a frequency-domain delay-slope-corrected complex cross-spectrum using the Stage 6 RX1-RX0 arrival delay plus a separately configured static instrumental delay.
+
+Do not implement Stage 8 fringe stopping, Stage 9 integration, logging, calibration, imaging or OOT modules until Stage 7 is experimentally validated.
 
 ## Target environment
 - Ubuntu 24.04.4

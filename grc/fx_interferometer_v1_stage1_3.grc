@@ -101,6 +101,54 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: delay_correction_enable
+  id: variable_qtgui_chooser
+  parameters:
+    comment: 'Stage 7 runtime bypass: True applies frequency-domain delay-slope correction, False passes raw C01 through.'
+    gui_hint: ''
+    label: Delay Correction
+    label0: Enabled
+    label1: Bypass
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: 'True'
+    option1: 'False'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[True, False]'
+    orient: Qt.QHBoxLayout
+    type: bool
+    value: 'True'
+    widget: combo_box
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 1624.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: instrument_delay_ns
+  id: variable_qtgui_entry
+  parameters:
+    comment: 'Stage 7 static instrumental delay, ns. Positive means RX1 electrically delayed relative to RX0.'
+    entry_signal: editingFinished
+    gui_hint: ''
+    label: Instrument Delay (ns)
+    type: string
+    value: '0.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1560, 1744.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: gain0
   id: variable
   parameters:
@@ -255,8 +303,8 @@ blocks:
 - name: baseline_n_m
   id: variable
   parameters:
-    comment: 'Stage 6 B01 = r1-r0 north component, metres.'
-    value: '-0.025'
+    comment: 'Stage 6 B01 = r1-r0 north component, metres. Current working N is astronomically refined.'
+    value: '+0.095'
   states:
     bus_sink: false
     bus_source: false
@@ -465,7 +513,7 @@ blocks:
               self,
               site_lat_deg=-32.724,
               baseline_e_m=-5.785,
-              baseline_n_m=-0.025,
+              baseline_n_m=0.095,
               baseline_u_m=0.580,
               sky_cf=4.800e9,
           ):
@@ -635,7 +683,7 @@ blocks:
     sky_cf: sky_cf
   states:
     _io_cache: ('Baseline Geometry Engine', 'blk', [('site_lat_deg', '-32.724'),
-      ('baseline_e_m', '-5.785'), ('baseline_n_m', '-0.025'), ('baseline_u_m',
+      ('baseline_e_m', '-5.785'), ('baseline_n_m', '0.095'), ('baseline_u_m',
       '0.580'), ('sky_cf', '4800000000.0')], [('0', 'float', 1), ('1', 'float',
       1), ('2', 'float', 1)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float',
       1), ('3', 'float', 1), ('4', 'float', 1), ('5', 'float', 1), ('6', 'float',
@@ -1203,6 +1251,510 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [2488, 464.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: delay_slope_corrector
+  id: epy_block
+  parameters:
+    _source_code: |
+      import numpy as np
+      from gnuradio import gr
+
+
+      class blk(gr.sync_block):
+          """Stage 7 frequency-domain delay-slope corrector.
+
+          Input C01 uses the fixed convention C01 = X0 * conj(X1).
+          Positive delay means RX1 is delayed relative to RX0 and produces a
+          positive phase slope versus increasing B210 baseband/IF frequency.
+          This block removes that slope using exp(-j*2*pi*f_bb*tau).
+          The centre FFT bin is not rotated because f_bb[centre] = 0.
+          """
+
+          def __init__(
+              self,
+              fft_size=4096,
+              samp_rate=30.72e6,
+              instrument_delay_ns=0.0,
+              delay_correction_enable=True,
+          ):
+              self.fft_size = int(fft_size)
+              self.samp_rate = float(samp_rate)
+              self.instrument_delay_ns = float(instrument_delay_ns)
+              self.delay_correction_enable = self._as_bool(delay_correction_enable)
+              gr.sync_block.__init__(
+                  self,
+                  name='Delay Slope Corrector',
+                  in_sig=[(np.complex64, self.fft_size), np.float32],
+                  out_sig=[(np.complex64, self.fft_size)],
+              )
+              self._f_bb = (
+                  (np.arange(self.fft_size, dtype=np.float64) - self.fft_size / 2.0)
+                  * self.samp_rate
+                  / self.fft_size
+              )
+
+          @staticmethod
+          def _as_bool(value):
+              if isinstance(value, str):
+                  return value.strip().lower() in ("1", "true", "yes", "on", "enable", "enabled")
+              return bool(value)
+
+          def set_instrument_delay_ns(self, value):
+              self.instrument_delay_ns = float(value)
+
+          def set_delay_correction_enable(self, value):
+              self.delay_correction_enable = self._as_bool(value)
+
+          def work(self, input_items, output_items):
+              spectra = input_items[0]
+              geo_arrival_ns = input_items[1]
+              corrected = output_items[0]
+              nout = len(spectra)
+
+              if not self.delay_correction_enable:
+                  corrected[:nout] = spectra
+                  return nout
+
+              instrument_delay_ns = float(self.instrument_delay_ns)
+              if not np.isfinite(instrument_delay_ns):
+                  corrected[:nout] = spectra
+                  return nout
+
+              for i in range(nout):
+                  tau_geo_ns = float(geo_arrival_ns[i])
+                  if not np.isfinite(tau_geo_ns):
+                      corrected[i] = spectra[i]
+                      continue
+
+                  tau_apply_s = (tau_geo_ns + instrument_delay_ns) * 1e-9
+                  rotation = np.exp((-1j * 2.0 * np.pi * self._f_bb * tau_apply_s)).astype(np.complex64)
+                  corrected[i] = spectra[i] * rotation
+
+              return nout
+    affinity: ''
+    alias: ''
+    comment: 'Stage 7 only: low-rate frequency-domain delay-slope correction after cross_accum. Does not fringe-stop centre frequency.'
+    delay_correction_enable: delay_correction_enable
+    fft_size: fft_size
+    instrument_delay_ns: instrument_delay_ns
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    samp_rate: samp_rate
+  states:
+    _io_cache: '(''Delay Slope Corrector'', ''blk'', [(''fft_size'', ''4096''), (''samp_rate'', ''30720000.0''), (''instrument_delay_ns'', ''0.0''), (''delay_correction_enable'', ''True'')], [(''0'', ''complex'', 4096), (''1'', ''float'', 1)], [(''0'', ''complex'', 4096)], ''Stage 7 frequency-domain delay-slope corrector.'', [''fft_size'', ''samp_rate'', ''instrument_delay_ns'', ''delay_correction_enable''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3232, 752.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: corrected_cross_phase_rad
+  id: blocks_complex_to_arg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 7 corrected C01 phase, radians.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: fft_size
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3488, 736.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: corrected_cross_phase_deg
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Convert Stage 7 corrected C01 phase from radians to degrees.'
+    const: '[57.29577951308232]*fft_size'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: fft_size
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3728, 736.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: corrected_cross_phase_sink
+  id: qtgui_vector_sink_f
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    average: '1.0'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: 'Stage 7 delay-corrected but unstopped cross phase display.'
+    grid: 'True'
+    gui_hint: ''
+    label1: 'arg(C01 corrected), delay-slope corrected only'
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    name: '"Stage 7 - Delay-Corrected Cross Phase"'
+    nconnections: '1'
+    ref_level: '0'
+    showports: 'True'
+    update_time: '0.10'
+    vlen: fft_size
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    x_axis_label: Sky frequency (GHz)
+    x_start: sky_axis_start/1e9
+    x_step: sky_axis_step/1e9
+    x_units: '""'
+    y_axis_label: Corrected cross phase (deg)
+    y_units: '""'
+    ymax: '180'
+    ymin: '-180'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3992, 736.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: corrected_phase_slope_delay_estimator
+  id: epy_block
+  parameters:
+    _source_code: |
+      import numpy as np
+      from gnuradio import gr
+
+
+      class blk(gr.sync_block):
+          """Stage 7 corrected phase-slope / differential-delay diagnostic.
+
+          Fits unwrapped C01 phase against increasing B210 baseband/IF
+          frequency. Cross-spectrum convention is C01 = X0 * conj(X1).
+          Provisional sign convention: positive RX1 delay relative to RX0
+          should produce positive phase slope versus increasing IF/baseband
+          frequency and positive reported differential delay.
+          """
+
+          def __init__(self, fft_size=4096, samp_rate=30.72e6, phase_fit_edge_exclude_pct=7.5):
+              self.fft_size = int(fft_size)
+              self.samp_rate = float(samp_rate)
+              self.phase_fit_edge_exclude_pct = float(phase_fit_edge_exclude_pct)
+              gr.sync_block.__init__(
+                  self,
+                  name='Corrected Phase Slope / Delay Estimator',
+                  in_sig=[(np.complex64, self.fft_size)],
+                  out_sig=[np.float32, np.float32, np.float32],
+              )
+              self._f = (
+                  (np.arange(self.fft_size, dtype=np.float64) - self.fft_size / 2.0)
+                  * self.samp_rate
+                  / self.fft_size
+              )
+
+          def set_phase_fit_edge_exclude_pct(self, value):
+              self.phase_fit_edge_exclude_pct = float(value)
+
+          def _fit_vectors(self, c01):
+              edge_pct = float(self.phase_fit_edge_exclude_pct)
+              if edge_pct < 0.0:
+                  print(
+                      f"Stage 4 phase fit warning: edge exclusion {edge_pct}% is below 0%; using 0%.",
+                      flush=True,
+                  )
+                  edge_pct = 0.0
+              elif edge_pct >= 50.0:
+                  print(
+                      f"Stage 4 phase fit warning: edge exclusion {edge_pct}% is >= 50%; using 49%.",
+                      flush=True,
+                  )
+                  edge_pct = 49.0
+
+              n_bins = len(c01)
+              n_edge = int(n_bins * (edge_pct / 100.0))
+              n_fit = n_bins - 2 * n_edge
+              if n_fit < 2:
+                  print(
+                      f"Stage 4 phase fit warning: edge exclusion leaves {n_fit} bins; using full spectrum.",
+                      flush=True,
+                  )
+                  n_edge = 0
+
+              if n_edge > 0:
+                  return c01[n_edge:-n_edge], self._f[n_edge:-n_edge]
+              return c01, self._f
+
+          def work(self, input_items, output_items):
+              spectra = input_items[0]
+              delay_ns = output_items[0]
+              slope_deg_per_mhz = output_items[1]
+              fit_rms_deg = output_items[2]
+
+              for i, c01 in enumerate(spectra):
+                  c01_fit, f_fit = self._fit_vectors(c01)
+                  phase = np.angle(c01_fit)
+                  phase_unwrapped = np.unwrap(phase).astype(np.float64)
+                  slope, intercept = np.polyfit(f_fit, phase_unwrapped, 1)
+                  phase_fit = slope * f_fit + intercept
+                  residual = phase_unwrapped - phase_fit
+
+                  delay_ns[i] = np.float32((slope / (2.0 * np.pi)) * 1e9)
+                  slope_deg_per_mhz[i] = np.float32(slope * (180.0 / np.pi) * 1e6)
+                  fit_rms_deg[i] = np.float32(
+                      np.sqrt(np.mean(residual * residual)) * (180.0 / np.pi)
+                  )
+
+              return len(spectra)
+    affinity: ''
+    alias: ''
+    comment: 'Stage 7 corrected C01 diagnostic. Same fit convention and edge exclusion as raw Stage 4 estimator.'
+    fft_size: fft_size
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    phase_fit_edge_exclude_pct: phase_fit_edge_exclude_pct
+    samp_rate: samp_rate
+  states:
+    _io_cache: '(''Corrected Phase Slope / Delay Estimator'', ''blk'', [(''fft_size'', ''4096''), (''samp_rate'', ''30720000.0''), (''phase_fit_edge_exclude_pct'', ''7.5'')], [(''0'', ''complex'', 4096)], [(''0'', ''float'', 1), (''1'', ''float'', 1), (''2'', ''float'', 1)], ''Stage 7 corrected phase-slope / differential-delay diagnostic.'', [''fft_size'', ''samp_rate'', ''phase_fit_edge_exclude_pct''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3488, 1040.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: corrected_delay_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: ("blue", "red")
+    color10: ("black", "black")
+    color2: ("black", "black")
+    color3: ("black", "black")
+    color4: ("black", "black")
+    color5: ("black", "black")
+    color6: ("black", "black")
+    color7: ("black", "black")
+    color8: ("black", "black")
+    color9: ("black", "black")
+    comment: 'Stage 7 corrected differential delay from corrected C01 phase slope.'
+    factor1: '1'
+    factor10: '1'
+    factor2: '1'
+    factor3: '1'
+    factor4: '1'
+    factor5: '1'
+    factor6: '1'
+    factor7: '1'
+    factor8: '1'
+    factor9: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Corrected Differential Delay
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    max: '100'
+    min: '-100'
+    name: '"Corrected Differential Delay (ns)"'
+    nconnections: '1'
+    type: float
+    unit1: ns
+    unit10: ''
+    unit2: ''
+    unit3: ''
+    unit4: ''
+    unit5: ''
+    unit6: ''
+    unit7: ''
+    unit8: ''
+    unit9: ''
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3992, 1040.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: corrected_phase_slope_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: ("blue", "red")
+    color10: ("black", "black")
+    color2: ("black", "black")
+    color3: ("black", "black")
+    color4: ("black", "black")
+    color5: ("black", "black")
+    color6: ("black", "black")
+    color7: ("black", "black")
+    color8: ("black", "black")
+    color9: ("black", "black")
+    comment: 'Stage 7 corrected phase slope in degrees per MHz.'
+    factor1: '1'
+    factor10: '1'
+    factor2: '1'
+    factor3: '1'
+    factor4: '1'
+    factor5: '1'
+    factor6: '1'
+    factor7: '1'
+    factor8: '1'
+    factor9: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Corrected Phase Slope
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    max: '1000'
+    min: '-1000'
+    name: '"Corrected Phase Slope (deg/MHz)"'
+    nconnections: '1'
+    type: float
+    unit1: deg/MHz
+    unit10: ''
+    unit2: ''
+    unit3: ''
+    unit4: ''
+    unit5: ''
+    unit6: ''
+    unit7: ''
+    unit8: ''
+    unit9: ''
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3992, 1216.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: corrected_phase_fit_rms_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: ("blue", "red")
+    color10: ("black", "black")
+    color2: ("black", "black")
+    color3: ("black", "black")
+    color4: ("black", "black")
+    color5: ("black", "black")
+    color6: ("black", "black")
+    color7: ("black", "black")
+    color8: ("black", "black")
+    color9: ("black", "black")
+    comment: 'Stage 7 RMS residual of corrected C01 linear phase fit.'
+    factor1: '1'
+    factor10: '1'
+    factor2: '1'
+    factor3: '1'
+    factor4: '1'
+    factor5: '1'
+    factor6: '1'
+    factor7: '1'
+    factor8: '1'
+    factor9: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Corrected Phase Fit RMS
+    label10: ''
+    label2: ''
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    max: '180'
+    min: '0'
+    name: '"Corrected Phase Fit RMS (deg)"'
+    nconnections: '1'
+    type: float
+    unit1: deg
+    unit10: ''
+    unit2: ''
+    unit3: ''
+    unit4: ''
+    unit5: ''
+    unit6: ''
+    unit7: ''
+    unit8: ''
+    unit9: ''
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [3992, 1392.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -1919,7 +2471,16 @@ connections:
 - [baseline_geometry_engine, '5', baseline_geometry_number_sink, '5']
 - [baseline_geometry_engine, '6', baseline_geometry_number_sink, '6']
 - [baseline_geometry_engine, '7', baseline_geometry_number_sink, '7']
+- [baseline_geometry_engine, '4', delay_slope_corrector, '1']
+- [corrected_cross_phase_deg, '0', corrected_cross_phase_sink, '0']
+- [corrected_cross_phase_rad, '0', corrected_cross_phase_deg, '0']
+- [corrected_phase_slope_delay_estimator, '0', corrected_delay_number_sink, '0']
+- [corrected_phase_slope_delay_estimator, '1', corrected_phase_slope_number_sink, '0']
+- [corrected_phase_slope_delay_estimator, '2', corrected_phase_fit_rms_number_sink, '0']
 - [cross_accum, '0', astronomy_coordinate_engine, '0']
+- [cross_accum, '0', delay_slope_corrector, '0']
+- [delay_slope_corrector, '0', corrected_cross_phase_rad, '0']
+- [delay_slope_corrector, '0', corrected_phase_slope_delay_estimator, '0']
 - [cross_accum, '0', cross_mag, '0']
 - [cross_accum, '0', cross_phase_rad, '0']
 - [cross_accum, '0', phase_slope_delay_estimator, '0']

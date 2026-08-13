@@ -11,7 +11,7 @@ from tests.test_stage5_coordinates import compute_coordinates
 
 C_M_S = 299792458.0
 BASELINE_E_M = -5.785
-BASELINE_N_M = -0.025
+BASELINE_N_M = 0.095
 BASELINE_U_M = 0.580
 SITE_LAT_DEG = -32.724
 SKY_CF_HZ = 4.800e9
@@ -75,16 +75,16 @@ def geometry_for(ha_hour, dec_deg):
 class Stage6GeometryTests(unittest.TestCase):
     def test_baseline_length_and_max_delay(self):
         length = float(np.linalg.norm(baseline_vector()))
-        self.assertAlmostEqual(length, 5.814056, places=6)
-        self.assertAlmostEqual(length / C_M_S * 1e9, 19.393604, places=6)
+        self.assertAlmostEqual(length, 5.814779, places=6)
+        self.assertAlmostEqual(length / C_M_S * 1e9, 19.396014, places=6)
 
     def test_cardinal_source_delays(self):
         baseline = baseline_vector()
         cases = [
             (np.array([1.0, 0.0, 0.0]), -19.296683),
             (np.array([-1.0, 0.0, 0.0]), 19.296683),
-            (np.array([0.0, 1.0, 0.0]), -0.083391),
-            (np.array([0.0, -1.0, 0.0]), 0.083391),
+            (np.array([0.0, 1.0, 0.0]), 0.316886),
+            (np.array([0.0, -1.0, 0.0]), -0.316886),
             (np.array([0.0, 0.0, 1.0]), 1.934672),
         ]
         for s_enu, expected_ns in cases:
@@ -110,7 +110,7 @@ class Stage6GeometryTests(unittest.TestCase):
             self.assertAlmostEqual(uvw_len2, baseline_len2, places=10)
             self.assertAlmostEqual(geom["w_m"] / C_M_S, geom["tau_s"], places=18)
             self.assertAlmostEqual(geom["arrival_delay_10_ns"], -geom["tau_ns"], places=12)
-            self.assertLessEqual(abs(geom["tau_ns"]), 19.393604102201962 + 1e-9)
+            self.assertLessEqual(abs(geom["tau_ns"]), 19.396013576960943 + 1e-9)
 
     def test_transit_symmetry_and_signs(self):
         geom = geometry_for(0.0, -30.0)
@@ -129,7 +129,7 @@ class Stage6GeometryTests(unittest.TestCase):
     def test_negative_declination(self):
         geom = geometry_for(1.5, -60.0)
         self.assertTrue(math.isfinite(geom["tau_ns"]))
-        self.assertLessEqual(abs(geom["tau_ns"]), 19.393604102201962 + 1e-9)
+        self.assertLessEqual(abs(geom["tau_ns"]), 19.396013576960943 + 1e-9)
 
     def test_sun_and_manual_stage5_coordinates_supply_finite_stage6_geometry(self):
         with warnings.catch_warnings():
@@ -147,7 +147,7 @@ class Stage6GeometryTests(unittest.TestCase):
         graph = yaml.safe_load(graph_path.read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
         self.assertEqual(blocks["baseline_e_m"]["parameters"]["value"], "-5.785")
-        self.assertEqual(blocks["baseline_n_m"]["parameters"]["value"], "-0.025")
+        self.assertEqual(blocks["baseline_n_m"]["parameters"]["value"], "+0.095")
         self.assertEqual(blocks["baseline_u_m"]["parameters"]["value"], "+0.580")
         connections = {tuple(connection) for connection in graph["connections"]}
         required = {

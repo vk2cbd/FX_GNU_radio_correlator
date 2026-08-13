@@ -14,7 +14,7 @@ class blk(gr.sync_block):
         self,
         site_lat_deg=-32.724,
         baseline_e_m=-5.785,
-        baseline_n_m=-0.025,
+        baseline_n_m=0.095,
         baseline_u_m=0.580,
         sky_cf=4.800e9,
     ):

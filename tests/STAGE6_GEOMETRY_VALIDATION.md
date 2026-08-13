@@ -2,7 +2,7 @@
 
 Stage 6 is calculation/display only. It must not correct `C01`, apply delay compensation, fringe stop, calibrate, log, image, or modify the Stage 1-5 science path.
 
-## Surveyed Baseline
+## Working Baseline
 
 Baseline convention:
 
@@ -15,11 +15,11 @@ Antenna identities:
 - antenna 0 = RX0 = 2.4 m dish
 - antenna 1 = RX1 = 1.7 m dish
 
-Surveyed ENU components:
+Current working ENU components:
 
 ```text
 baseline_e_m = -5.785
-baseline_n_m = -0.025
+baseline_n_m = +0.095
 baseline_u_m = +0.580
 ```
 
@@ -29,18 +29,22 @@ ENU convention:
 - `+N` = geographic north
 - `+U` = up
 
-Therefore antenna 1 is 5.785 m west, 0.025 m south and 0.580 m above antenna 0.
+Therefore antenna 1 is 5.785 m west, 0.095 m north and 0.580 m above antenna 0.
+
+E and U are physically measured baseline components.
+
+N = +0.095 m is the current astronomically refined / working north component derived from Stage-6 validation.
 
 Expected baseline magnitude:
 
 ```text
-|B01| = 5.814056 m
+|B01| = 5.814779 m
 ```
 
 Maximum absolute geometric delay:
 
 ```text
-|B01| / c = 19.393604 ns
+|B01| / c = 19.396 ns
 ```
 
 ## Delay Conventions
@@ -131,7 +135,7 @@ u_m^2 + v_m^2 + w_m^2 ~= |B01|^2
 
 ## Cardinal Direction Sign Tests
 
-For `B01 = (-5.785, -0.025, +0.580) m`:
+For `B01 = (-5.785, +0.095, +0.580) m`:
 
 ```text
 Source on EAST horizon,  s_ENU = (+1,0,0): tau_g ~= -19.296683 ns

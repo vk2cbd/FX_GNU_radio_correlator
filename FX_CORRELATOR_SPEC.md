@@ -25,13 +25,15 @@ Version 1 shall:
 ## 3. Antennas and baseline
 - Antenna 0: 2.4 m dish, B210 RX0
 - Antenna 1: 1.7 m dish, B210 RX1
-- Surveyed baseline B01 = r1 - r0 in ENU metres:
+- Current working baseline B01 = r1 - r0 in ENU metres:
   - E = -5.785 m
-  - N = -0.025 m
+  - N = +0.095 m
   - U = +0.580 m
 - Antenna 0 is east of antenna 1 and lower than antenna 1.
-- Baseline magnitude is approximately 5.814056 m.
-- Maximum possible absolute geometric delay is approximately 19.393604 ns.
+- E and U are physically measured baseline components.
+- N = +0.095 m is the current astronomically refined / working north component derived from Stage-6 validation.
+- Baseline magnitude is approximately 5.814779 m.
+- Maximum possible absolute geometric delay is approximately 19.396 ns.
 - Surveyed baseline shall be represented as E/N/U in metres
 - Baseline convention: B01 = r1 - r0
 
