@@ -6,7 +6,7 @@ Read `FX_CORRELATOR_SPEC.md` before making architectural or DSP changes.
 If implementation details conflict with the specification, stop and report the conflict rather than silently changing the design.
 
 ## Current milestone
-The current task is Stage 7 only: frequency-domain delay-slope correction.
+The current task is Stage 8 only: broadband visibility and fringe stopping.
 
 Stage 1-4 coherent FX engine and differential-delay estimator are validated on the real B210 system.
 
@@ -16,7 +16,11 @@ Stage 6 surveyed-baseline geometry and astronomical sign/magnitude validation ha
 
 Stage 7 may calculate and display a frequency-domain delay-slope-corrected complex cross-spectrum using the Stage 6 RX1-RX0 arrival delay plus a separately configured static instrumental delay.
 
-Do not implement Stage 8 fringe stopping, Stage 9 integration, logging, calibration, imaging or OOT modules until Stage 7 is experimentally validated.
+Progression to Stage 8 has been authorised after Stage-7 implementation and commissioning.
+
+Stage 8 may coherently combine Stage-7 corrected frequency channels, preserve the unstopped broadband visibility, apply centre-frequency geometric fringe stopping, and display unstopped and stopped complex visibility.
+
+Do not implement Stage 9 temporal integration / stability advisor, logging, calibration solving, imaging or OOT migration until Stage 8 is experimentally validated.
 
 ## Target environment
 - Ubuntu 24.04.4

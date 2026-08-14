@@ -149,6 +149,94 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: visibility_edge_exclude_pct
+  id: variable
+  parameters:
+    comment: 'Stage 8 broadband visibility edge exclusion percentage from each end of corrected spectrum.'
+    value: '20.0'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1848, 1512.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: visibility_rate
+  id: variable
+  parameters:
+    comment: 'Stage 8 low-rate visibility sample rate after first-stage accumulation.'
+    value: fft_rate/accum_frames
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1848, 1624.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: fringe_stop_enable
+  id: variable_qtgui_chooser
+  parameters:
+    comment: 'Stage 8 runtime bypass: True applies centre-frequency geometric fringe stopping, False passes V_unstopped through.'
+    gui_hint: ''
+    label: Fringe Stop
+    label0: Enabled
+    label1: Bypass
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: 'True'
+    option1: 'False'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[True, False]'
+    orient: Qt.QHBoxLayout
+    type: bool
+    value: 'True'
+    widget: combo_box
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1848, 1736.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: fringe_stop_sign
+  id: variable_qtgui_chooser
+  parameters:
+    comment: 'Stage 8 commissioning sign control. Default Normal removes +phi_geo using exp(-j phi_geo).'
+    gui_hint: ''
+    label: Fringe Stop Sign
+    label0: Normal (-phi_geo)
+    label1: Reverse test (+phi_geo)
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: '-1'
+    option1: '1'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[-1, 1]'
+    orient: Qt.QHBoxLayout
+    type: int
+    value: '-1'
+    widget: combo_box
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [1848, 1856.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: gain0
   id: variable
   parameters:
@@ -1758,6 +1846,573 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: broadband_visibility_combiner
+  id: epy_block
+  parameters:
+    _source_code: |
+      import numpy as np
+      from gnuradio import gr
+
+
+      class blk(gr.sync_block):
+          """Stage 8 broadband complex visibility combiner.
+
+          Operates on Stage-7 delay-corrected C01 spectra and outputs one complex
+          unstopped visibility per accumulated spectrum. The combiner performs a
+          coherent complex mean over the retained FFT bins.
+          """
+
+          def __init__(self, fft_size=4096, visibility_edge_exclude_pct=20.0):
+              self.fft_size = int(fft_size)
+              self.visibility_edge_exclude_pct = float(visibility_edge_exclude_pct)
+              gr.sync_block.__init__(
+                  self,
+                  name='Broadband Visibility Combiner',
+                  in_sig=[(np.complex64, self.fft_size)],
+                  out_sig=[np.complex64],
+              )
+
+          def set_visibility_edge_exclude_pct(self, value):
+              self.visibility_edge_exclude_pct = float(value)
+
+          def _fit_slice(self):
+              edge_pct = float(self.visibility_edge_exclude_pct)
+              if edge_pct < 0.0:
+                  print(
+                      f"Stage 8 visibility warning: edge exclusion {edge_pct}% is below 0%; using 0%.",
+                      flush=True,
+                  )
+                  edge_pct = 0.0
+              elif edge_pct >= 50.0:
+                  print(
+                      f"Stage 8 visibility warning: edge exclusion {edge_pct}% is >= 50%; using 49%.",
+                      flush=True,
+                  )
+                  edge_pct = 49.0
+
+              n_edge = int(self.fft_size * (edge_pct / 100.0))
+              n_used = self.fft_size - 2 * n_edge
+              if n_used < 2:
+                  print(
+                      f"Stage 8 visibility warning: edge exclusion leaves {n_used} bins; using full spectrum.",
+                      flush=True,
+                  )
+                  n_edge = 0
+
+              if n_edge > 0:
+                  return slice(n_edge, self.fft_size - n_edge)
+              return slice(None)
+
+          def work(self, input_items, output_items):
+              spectra = input_items[0]
+              visibility = output_items[0]
+              use_bins = self._fit_slice()
+
+              for i, spectrum in enumerate(spectra):
+                  visibility[i] = np.complex64(np.mean(spectrum[use_bins], dtype=np.complex128))
+
+              return len(spectra)
+    affinity: ''
+    alias: ''
+    comment: 'Stage 8 only: coherent complex mean over usable Stage-7 corrected frequency bins. No temporal integration.'
+    fft_size: fft_size
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    visibility_edge_exclude_pct: visibility_edge_exclude_pct
+  states:
+    _io_cache: '(''Broadband Visibility Combiner'', ''blk'', [(''fft_size'', ''4096''), (''visibility_edge_exclude_pct'', ''20.0'')], [(''0'', ''complex'', 4096)], [(''0'', ''complex'', 1)], ''Stage 8 broadband complex visibility combiner.'', [''fft_size'', ''visibility_edge_exclude_pct''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4304, 752.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: fringe_stop_corrector
+  id: epy_block
+  parameters:
+    _source_code: |
+      import numpy as np
+      from gnuradio import gr
+
+
+      class blk(gr.sync_block):
+          """Stage 8 centre-frequency geometric fringe-stop corrector.
+
+          Uses Stage-6 tau_g, not RX1-RX0 arrival delay. The default sign is
+          exp(-j*2*pi*sky_cf*tau_g), matching the project geometric phase convention.
+          """
+
+          def __init__(self, sky_cf=4.800e9, fringe_stop_enable=True, fringe_stop_sign=-1):
+              self.sky_cf = float(sky_cf)
+              self.fringe_stop_enable = self._as_bool(fringe_stop_enable)
+              self.fringe_stop_sign = int(fringe_stop_sign)
+              gr.sync_block.__init__(
+                  self,
+                  name='Fringe Stop Corrector',
+                  in_sig=[np.complex64, np.float32],
+                  out_sig=[np.complex64],
+              )
+
+          @staticmethod
+          def _as_bool(value):
+              if isinstance(value, str):
+                  return value.strip().lower() in ("1", "true", "yes", "on", "enable", "enabled")
+              return bool(value)
+
+          def set_sky_cf(self, value):
+              self.sky_cf = float(value)
+
+          def set_fringe_stop_enable(self, value):
+              self.fringe_stop_enable = self._as_bool(value)
+
+          def set_fringe_stop_sign(self, value):
+              self.fringe_stop_sign = int(value)
+
+          def work(self, input_items, output_items):
+              unstopped = input_items[0]
+              tau_g_ns = input_items[1]
+              stopped = output_items[0]
+              nout = len(unstopped)
+
+              if not self.fringe_stop_enable:
+                  stopped[:nout] = unstopped
+                  return nout
+
+              sky_cf = float(self.sky_cf)
+              sign = int(self.fringe_stop_sign)
+              if sign not in (-1, 1) or not np.isfinite(sky_cf):
+                  stopped[:nout] = unstopped
+                  return nout
+
+              for i in range(nout):
+                  tau_ns = float(tau_g_ns[i])
+                  if not np.isfinite(tau_ns):
+                      stopped[i] = unstopped[i]
+                      continue
+
+                  tau_s = tau_ns * 1e-9
+                  rotation = np.exp(1j * sign * 2.0 * np.pi * sky_cf * tau_s)
+                  stopped[i] = np.complex64(unstopped[i] * rotation)
+
+              return nout
+    affinity: ''
+    alias: ''
+    comment: 'Stage 8 only: centre-frequency geometric fringe stopping using Stage-6 tau_g output 3.'
+    fringe_stop_enable: fringe_stop_enable
+    fringe_stop_sign: fringe_stop_sign
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    sky_cf: sky_cf
+  states:
+    _io_cache: '(''Fringe Stop Corrector'', ''blk'', [(''sky_cf'', ''4800000000.0''), (''fringe_stop_enable'', ''True''), (''fringe_stop_sign'', ''-1'')], [(''0'', ''complex'', 1), (''1'', ''float'', 1)], [(''0'', ''complex'', 1)], ''Stage 8 centre-frequency geometric fringe-stop corrector.'', [''sky_cf'', ''fringe_stop_enable'', ''fringe_stop_sign''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4624, 752.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: unstopped_complex_to_float
+  id: blocks_complex_to_float
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 8 V_unstopped I/Q for time display.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4624, 984.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stopped_complex_to_float
+  id: blocks_complex_to_float
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 8 V_stopped I/Q for time display.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4624, 1128.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: visibility_iq_time_sink
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'True'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: 'Stage 8 low-rate complex visibility I/Q comparison. Sample rate is visibility_rate, not RF sample rate.'
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'True'
+    gui_hint: ''
+    label1: Unstopped I
+    label10: ''
+    label2: Unstopped Q
+    label3: Stopped I
+    label4: Stopped Q
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"Stage 8 - Visibility I/Q"'
+    nconnections: '4'
+    size: '1000'
+    srate: visibility_rate
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.25'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Amplitude
+    ymax: '1'
+    ymin: '-1'
+    yunit: '""'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4936, 984.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: unstopped_visibility_mag
+  id: blocks_complex_to_mag
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 8 V_unstopped amplitude.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4936, 1288.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stopped_visibility_mag
+  id: blocks_complex_to_mag
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 8 V_stopped amplitude.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4936, 1432.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: unstopped_visibility_phase_rad
+  id: blocks_complex_to_arg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 8 V_unstopped phase, radians.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4936, 1576.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stopped_visibility_phase_rad
+  id: blocks_complex_to_arg
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Stage 8 V_stopped phase, radians.'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [4936, 1720.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: unstopped_visibility_phase_deg
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Convert V_unstopped phase from radians to degrees.'
+    const: '57.29577951308232'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [5200, 1576.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stopped_visibility_phase_deg
+  id: blocks_multiply_const_vxx
+  parameters:
+    affinity: ''
+    alias: ''
+    comment: 'Convert V_stopped phase from radians to degrees.'
+    const: '57.29577951308232'
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [5200, 1720.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: visibility_phase_time_sink
+  id: qtgui_time_sink_x
+  parameters:
+    affinity: ''
+    alias: ''
+    alpha1: '1.0'
+    alpha10: '1.0'
+    alpha2: '1.0'
+    alpha3: '1.0'
+    alpha4: '1.0'
+    alpha5: '1.0'
+    alpha6: '1.0'
+    alpha7: '1.0'
+    alpha8: '1.0'
+    alpha9: '1.0'
+    autoscale: 'False'
+    axislabels: 'True'
+    color1: '"blue"'
+    color10: '"dark blue"'
+    color2: '"red"'
+    color3: '"green"'
+    color4: '"black"'
+    color5: '"cyan"'
+    color6: '"magenta"'
+    color7: '"yellow"'
+    color8: '"dark red"'
+    color9: '"dark green"'
+    comment: 'Stage 8 phase-versus-time commissioning display.'
+    ctrlpanel: 'False'
+    entags: 'True'
+    grid: 'True'
+    gui_hint: ''
+    label1: Unstopped Phase
+    label10: ''
+    label2: Stopped Phase
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    legend: 'True'
+    marker1: '-1'
+    marker10: '-1'
+    marker2: '-1'
+    marker3: '-1'
+    marker4: '-1'
+    marker5: '-1'
+    marker6: '-1'
+    marker7: '-1'
+    marker8: '-1'
+    marker9: '-1'
+    name: '"Stage 8 - Visibility Phase"'
+    nconnections: '2'
+    size: '1000'
+    srate: visibility_rate
+    stemplot: 'False'
+    style1: '1'
+    style10: '1'
+    style2: '1'
+    style3: '1'
+    style4: '1'
+    style5: '1'
+    style6: '1'
+    style7: '1'
+    style8: '1'
+    style9: '1'
+    tr_chan: '0'
+    tr_delay: '0'
+    tr_level: '0.0'
+    tr_mode: qtgui.TRIG_MODE_FREE
+    tr_slope: qtgui.TRIG_SLOPE_POS
+    tr_tag: '""'
+    type: float
+    update_time: '0.25'
+    width1: '1'
+    width10: '1'
+    width2: '1'
+    width3: '1'
+    width4: '1'
+    width5: '1'
+    width6: '1'
+    width7: '1'
+    width8: '1'
+    width9: '1'
+    ylabel: Phase
+    ymax: '180'
+    ymin: '-180'
+    yunit: deg
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [5480, 1576.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: visibility_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: '("blue", "red")'
+    color10: '("black", "black")'
+    color2: '("blue", "red")'
+    color3: '("blue", "red")'
+    color4: '("blue", "red")'
+    color5: '("black", "black")'
+    color6: '("black", "black")'
+    color7: '("black", "black")'
+    color8: '("black", "black")'
+    color9: '("black", "black")'
+    comment: 'Stage 8 scalar visibility amplitude and phase diagnostics.'
+    factor1: '1'
+    factor10: '1'
+    factor2: '1'
+    factor3: '1'
+    factor4: '1'
+    factor5: '1'
+    factor6: '1'
+    factor7: '1'
+    factor8: '1'
+    factor9: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Unstopped Amplitude
+    label10: ''
+    label2: Unstopped Phase
+    label3: Stopped Amplitude
+    label4: Stopped Phase
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    max: '180'
+    min: '-180'
+    name: '"Stage 8 / Visibility Scalars"'
+    nconnections: '4'
+    type: float
+    unit1: ''
+    unit10: ''
+    unit2: deg
+    unit3: ''
+    unit4: deg
+    unit5: ''
+    unit6: ''
+    unit7: ''
+    unit8: ''
+    unit9: ''
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [5480, 1288.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: phase_slope_number_sink
   id: qtgui_number_sink
   parameters:
@@ -2478,7 +3133,13 @@ connections:
 - [corrected_phase_slope_delay_estimator, '1', corrected_phase_slope_number_sink, '0']
 - [corrected_phase_slope_delay_estimator, '2', corrected_phase_fit_rms_number_sink, '0']
 - [cross_accum, '0', astronomy_coordinate_engine, '0']
+- [baseline_geometry_engine, '3', fringe_stop_corrector, '1']
+- [broadband_visibility_combiner, '0', fringe_stop_corrector, '0']
+- [broadband_visibility_combiner, '0', unstopped_complex_to_float, '0']
+- [broadband_visibility_combiner, '0', unstopped_visibility_mag, '0']
+- [broadband_visibility_combiner, '0', unstopped_visibility_phase_rad, '0']
 - [cross_accum, '0', delay_slope_corrector, '0']
+- [delay_slope_corrector, '0', broadband_visibility_combiner, '0']
 - [delay_slope_corrector, '0', corrected_cross_phase_rad, '0']
 - [delay_slope_corrector, '0', corrected_phase_slope_delay_estimator, '0']
 - [cross_accum, '0', cross_mag, '0']
@@ -2489,6 +3150,21 @@ connections:
 - [cross_multiply_conjugate, '0', cross_accum, '0']
 - [cross_phase_deg, '0', cross_phase_sink, '0']
 - [cross_phase_rad, '0', cross_phase_deg, '0']
+- [fringe_stop_corrector, '0', stopped_complex_to_float, '0']
+- [fringe_stop_corrector, '0', stopped_visibility_mag, '0']
+- [fringe_stop_corrector, '0', stopped_visibility_phase_rad, '0']
+- [stopped_complex_to_float, '0', visibility_iq_time_sink, '2']
+- [stopped_complex_to_float, '1', visibility_iq_time_sink, '3']
+- [stopped_visibility_mag, '0', visibility_number_sink, '2']
+- [stopped_visibility_phase_deg, '0', visibility_number_sink, '3']
+- [stopped_visibility_phase_deg, '0', visibility_phase_time_sink, '1']
+- [stopped_visibility_phase_rad, '0', stopped_visibility_phase_deg, '0']
+- [unstopped_complex_to_float, '0', visibility_iq_time_sink, '0']
+- [unstopped_complex_to_float, '1', visibility_iq_time_sink, '1']
+- [unstopped_visibility_mag, '0', visibility_number_sink, '0']
+- [unstopped_visibility_phase_deg, '0', visibility_number_sink, '1']
+- [unstopped_visibility_phase_deg, '0', visibility_phase_time_sink, '0']
+- [unstopped_visibility_phase_rad, '0', unstopped_visibility_phase_deg, '0']
 - [phase_slope_delay_estimator, '0', delay_number_sink, '0']
 - [phase_slope_delay_estimator, '1', phase_slope_number_sink, '0']
 - [phase_slope_delay_estimator, '2', phase_fit_rms_number_sink, '0']
