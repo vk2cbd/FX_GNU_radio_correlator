@@ -202,14 +202,16 @@ class Stage8FringeStoppingTests(unittest.TestCase):
         new = load_grc()
         old_blocks = {block["name"]: block for block in old["blocks"]}
         new_blocks = {block["name"]: block for block in new["blocks"]}
+        renamed_blocks = {"integration_time_s": "integration_time_index"}
         changed = []
         for name, old_block in old_blocks.items():
-            self.assertIn(name, new_blocks)
+            new_name = renamed_blocks.get(name, name)
+            self.assertIn(new_name, new_blocks)
             for key in ("coordinate", "rotation", "enabled"):
                 old_state = old_block.get("states", {}).get(key)
-                new_state = new_blocks[name].get("states", {}).get(key)
+                new_state = new_blocks[new_name].get("states", {}).get(key)
                 if old_state != new_state:
-                    changed.append((name, key, old_state, new_state))
+                    changed.append((name, new_name, key, old_state, new_state))
         self.assertEqual(changed, [])
 
 
