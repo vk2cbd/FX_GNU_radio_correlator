@@ -237,47 +237,20 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
-- name: integration_time_index
-  id: variable_qtgui_chooser
+- name: integration_time_s
+  id: variable_qtgui_entry
   parameters:
-    comment: 'Stage 9 coherent integration selector index. integration_time_s maps this index to seconds.'
+    comment: 'Stage 9 requested coherent integration time, seconds. Effective time is quantised to native visibility samples.'
+    entry_signal: editingFinished
     gui_hint: ''
     label: Coherent Integration
-    label0: 0.1 s
-    label1: 0.25 s
-    label2: 0.5 s
-    label3: 1 s
-    label4: 2 s
-    labels: '["5 s", "10 s", "20 s", "30 s", "60 s"]'
-    num_opts: '10'
-    option0: '0'
-    option1: '1'
-    option2: '2'
-    option3: '3'
-    option4: '4'
-    options: '[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]'
-    orient: Qt.QHBoxLayout
-    type: int
-    value: '3'
-    widget: combo_box
+    type: string
+    value: '1.0'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
     coordinate: [2136, 1512.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: integration_time_s
-  id: variable
-  parameters:
-    comment: 'Stage 9 requested coherent integration time in seconds, derived from the GUI selector.'
-    value: '[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0][integration_time_index]'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [2424, 1512.0]
     enabled: true
     rotation: 0
     state: enabled

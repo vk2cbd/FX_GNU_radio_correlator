@@ -235,7 +235,6 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
         for name in {
-            "integration_time_index",
             "integration_time_s",
             "phase_rate_fit_window_s",
             "coherence_target_pct",
@@ -245,13 +244,10 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         }:
             self.assertIn(name, blocks)
 
-        self.assertEqual(blocks["integration_time_index"]["parameters"]["value"], "3")
-        self.assertEqual(blocks["integration_time_index"]["parameters"]["type"], "int")
-        self.assertEqual(blocks["integration_time_index"]["parameters"]["options"], "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]")
-        self.assertEqual(
-            blocks["integration_time_s"]["parameters"]["value"],
-            "[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0][integration_time_index]",
-        )
+        self.assertEqual(blocks["integration_time_s"]["id"], "variable_qtgui_entry")
+        self.assertEqual(blocks["integration_time_s"]["parameters"]["value"], "1.0")
+        self.assertEqual(blocks["integration_time_s"]["parameters"]["type"], "string")
+        self.assertEqual(blocks["integration_time_s"]["parameters"]["entry_signal"], "editingFinished")
         self.assertEqual(blocks["phase_rate_fit_window_s"]["parameters"]["value"], "60.0")
         self.assertEqual(blocks["coherence_target_pct"]["parameters"]["value"], "95.0")
         self.assertIn("general_work", blocks["coherent_visibility_integrator"]["parameters"]["_source_code"])
@@ -279,10 +275,11 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         new = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
         old_blocks = {block["name"]: block for block in old["blocks"]}
         new_blocks = {block["name"]: block for block in new["blocks"]}
-        renamed_blocks = {"integration_time_s": "integration_time_index"}
         changed = []
         for name, old_block in old_blocks.items():
-            new_name = renamed_blocks.get(name, name)
+            if name == "integration_time_s" and old_block["id"] == "variable":
+                continue
+            new_name = "integration_time_s" if name == "integration_time_index" else name
             self.assertIn(new_name, new_blocks)
             for key in ("coordinate", "rotation", "enabled"):
                 old_state = old_block.get("states", {}).get(key)
