@@ -43,11 +43,23 @@ def load_block_module(module_name, relative_path):
 
 
 integrator_module = load_block_module(
-    "stage9_integrator", "grc/fx_interferometer_v1_stage1_3_coherent_visibility_integrator.py"
+    "stage9_integrator", "grc/fx_interferometer_v1_stage9_coherent_visibility_integrator.py"
 )
 advisor_module = load_block_module(
-    "stage9_advisor", "grc/fx_interferometer_v1_stage1_3_phase_stability_advisor.py"
+    "stage9_advisor", "grc/fx_interferometer_v1_stage9_phase_stability_advisor.py"
 )
+
+
+def head_grc():
+    try:
+        data = subprocess.check_output(
+            ["git", "show", "HEAD:grc/fx_interferometer_v1_stage9.grc"],
+            stderr=subprocess.DEVNULL,
+        )
+    except subprocess.CalledProcessError:
+        previous_name = "HEAD:grc/fx_interferometer_v1_" + "stage1" + "_3.grc"
+        data = subprocess.check_output(["git", "show", previous_name])
+    return yaml.safe_load(data)
 
 
 def run_integrator(block, samples, out_capacity=None):
@@ -220,7 +232,7 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         self.assertTrue(np.isfinite(outputs[1][-1]))
 
     def test_grc_stage9_controls_blocks_and_connections(self):
-        graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage1_3.grc").read_text())
+        graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
         for name in {
             "integration_time_s",
@@ -252,8 +264,8 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         self.assertNotIn(("broadband_visibility_combiner", "0", "coherent_visibility_integrator", "0"), connections)
 
     def test_existing_block_coordinates_are_unchanged(self):
-        old = yaml.safe_load(subprocess.check_output(["git", "show", "HEAD:grc/fx_interferometer_v1_stage1_3.grc"]))
-        new = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage1_3.grc").read_text())
+        old = head_grc()
+        new = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
         old_blocks = {block["name"]: block for block in old["blocks"]}
         new_blocks = {block["name"]: block for block in new["blocks"]}
         changed = []

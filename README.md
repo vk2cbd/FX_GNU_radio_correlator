@@ -23,7 +23,7 @@ See `FX_CORRELATOR_SPEC.md` for the authoritative design.
 Do high-rate DSP in standard compiled GNU Radio blocks. Only move into custom Python after the FX spectra have been accumulated to roughly 10 updates/s.
 
 ## First milestone
-Create `grc/fx_interferometer_v1_stage1_3.grc` containing:
+Create `grc/fx_interferometer_v1_stage9.grc` containing:
 
 1. one UHD USRP Source with channels `[0,1]`
 2. Stream-to-Vector on each RX

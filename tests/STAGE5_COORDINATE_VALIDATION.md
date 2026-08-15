@@ -122,7 +122,7 @@ On the authoritative Ubuntu GNU Radio 3.10.9.2 system:
 cd /home/astro/GNU_Radio/FX_GNU_radio_correlator
 git checkout stage1-3-fx-engine
 git pull
-gnuradio-companion grc/fx_interferometer_v1_stage1_3.grc
+gnuradio-companion grc/fx_interferometer_v1_stage9.grc
 ```
 
 Confirm:

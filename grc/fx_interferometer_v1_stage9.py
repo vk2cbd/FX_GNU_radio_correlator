@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0
 #
 # GNU Radio Python Flow Graph
-# Title: FX Interferometer V1 Stage 1-3
+# Title: FX Interferometer V1 Stage 9
 # Description: Minimal two-channel B210 FX correlator commissioning flowgraph.
 # GNU Radio version: 3.10.9.2
 
@@ -25,18 +25,18 @@ from argparse import ArgumentParser
 from gnuradio.eng_arg import eng_float, intx
 from gnuradio import uhd
 import time
-import fx_interferometer_v1_stage1_3_astronomy_coordinate_engine as astronomy_coordinate_engine  # embedded python block
-import fx_interferometer_v1_stage1_3_phase_slope_delay_estimator as phase_slope_delay_estimator  # embedded python block
+import fx_interferometer_v1_stage9_astronomy_coordinate_engine as astronomy_coordinate_engine  # embedded python block
+import fx_interferometer_v1_stage9_phase_slope_delay_estimator as phase_slope_delay_estimator  # embedded python block
 import sip
 
 
 
-class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
+class fx_interferometer_v1_stage9(gr.top_block, Qt.QWidget):
 
     def __init__(self):
-        gr.top_block.__init__(self, "FX Interferometer V1 Stage 1-3", catch_exceptions=True)
+        gr.top_block.__init__(self, "FX Interferometer V1 Stage 9", catch_exceptions=True)
         Qt.QWidget.__init__(self)
-        self.setWindowTitle("FX Interferometer V1 Stage 1-3")
+        self.setWindowTitle("FX Interferometer V1 Stage 9")
         qtgui.util.check_set_qss()
         try:
             self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
@@ -54,7 +54,7 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
         self.top_grid_layout = Qt.QGridLayout()
         self.top_layout.addLayout(self.top_grid_layout)
 
-        self.settings = Qt.QSettings("GNU Radio", "fx_interferometer_v1_stage1_3")
+        self.settings = Qt.QSettings("GNU Radio", "fx_interferometer_v1_stage9")
 
         try:
             geometry = self.settings.value("geometry")
@@ -446,7 +446,7 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
 
 
     def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "fx_interferometer_v1_stage1_3")
+        self.settings = Qt.QSettings("GNU Radio", "fx_interferometer_v1_stage9")
         self.settings.setValue("geometry", self.saveGeometry())
         self.stop()
         self.wait()
@@ -599,7 +599,7 @@ class fx_interferometer_v1_stage1_3(gr.top_block, Qt.QWidget):
 
 
 
-def main(top_block_cls=fx_interferometer_v1_stage1_3, options=None):
+def main(top_block_cls=fx_interferometer_v1_stage9, options=None):
 
     qapp = Qt.QApplication(sys.argv)
 

@@ -4,7 +4,7 @@ options:
     catch_exceptions: 'True'
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
-    comment: 'Stage 1-3 coherent FX engine only. RX0=Antenna 0 / 2.4 m, RX1=Antenna
+    comment: 'Stage 9 FX interferometer flowgraph. RX0=Antenna 0 / 2.4 m, RX1=Antenna
       1 / 1.7 m. Cross-spectrum convention: C01[k] = X0[k] * conj(X1[k]). High-side
       LNB sky axis uses x_start=lnb_lo-(if_cf-samp_rate/2), x_step=-samp_rate/fft_size.'
     copyright: ''
@@ -13,7 +13,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: fx_interferometer_v1_stage1_3
+    id: fx_interferometer_v1_stage9
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -24,7 +24,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: FX Interferometer V1 Stage 1-3
+    title: FX Interferometer V1 Stage 9
     window_size: ''
   states:
     bus_sink: false

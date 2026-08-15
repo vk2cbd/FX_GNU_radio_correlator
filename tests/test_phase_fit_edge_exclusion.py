@@ -113,7 +113,7 @@ class PhaseFitEdgeExclusionTests(unittest.TestCase):
             self.assertTrue(math.isfinite(result["rms_deg"]))
 
     def test_grc_variable_and_stage4_connections(self):
-        graph_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage1_3.grc"
+        graph_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage9.grc"
         graph = yaml.safe_load(graph_path.read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
         self.assertEqual(blocks["phase_fit_edge_exclude_pct"]["parameters"]["value"], "7.5")

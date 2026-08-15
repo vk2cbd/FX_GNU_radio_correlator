@@ -143,7 +143,7 @@ class Stage6GeometryTests(unittest.TestCase):
                 self.assertTrue(math.isfinite(value))
 
     def test_graph_preserves_stage1_to_stage5_connections_and_stage4_estimator(self):
-        graph_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage1_3.grc"
+        graph_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage9.grc"
         graph = yaml.safe_load(graph_path.read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
         self.assertEqual(blocks["baseline_e_m"]["parameters"]["value"], "-5.785")

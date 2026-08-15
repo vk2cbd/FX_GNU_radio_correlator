@@ -5,7 +5,7 @@ Create and validate the first GNU Radio Companion flowgraph for the FX interfero
 
 Target file:
 
-`grc/fx_interferometer_v1_stage1_3.grc`
+`grc/fx_interferometer_v1_stage9.grc`
 
 ## Environment
 - Ubuntu 24.04.4

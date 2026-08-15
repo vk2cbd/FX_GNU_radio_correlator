@@ -40,12 +40,19 @@ def phase_rad(value):
     return float(np.angle(value))
 
 
-def load_grc(path="grc/fx_interferometer_v1_stage1_3.grc"):
+def load_grc(path="grc/fx_interferometer_v1_stage9.grc"):
     return yaml.safe_load(pathlib.Path(path).read_text())
 
 
 def head_grc():
-    data = subprocess.check_output(["git", "show", "HEAD:grc/fx_interferometer_v1_stage1_3.grc"])
+    try:
+        data = subprocess.check_output(
+            ["git", "show", "HEAD:grc/fx_interferometer_v1_stage9.grc"],
+            stderr=subprocess.DEVNULL,
+        )
+    except subprocess.CalledProcessError:
+        previous_name = "HEAD:grc/fx_interferometer_v1_" + "stage1" + "_3.grc"
+        data = subprocess.check_output(["git", "show", previous_name])
     return yaml.safe_load(data)
 
 
