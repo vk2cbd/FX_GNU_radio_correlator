@@ -211,3 +211,23 @@ Pass requires:
 - fringe stopping does not change amplitude except for floating-point error;
 - no Stage-9 temporal integration, stability advisor, logging, calibration,
   rho, imaging, or OOT migration has been added.
+
+## Real-System Acceptance Note
+
+Stage 8 primary fringe-stop acceptance passed on a Moon observation.
+
+The commissioning A/B/C test showed:
+
+- Normal `(-phi_geo)`: stopped phase became nearly stationary while the
+  unstopped visibility continued to fringe.
+- Reverse `(+phi_geo)`: stopped phase rotated substantially faster, matching
+  the expected wrong-sign behaviour.
+- Bypass: stopped and unstopped phase traces coincided.
+
+Amplitude preservation was also observed. Example commissioning values showed
+`abs(V_unstopped)` and `abs(V_stopped)` equal within numerical precision.
+
+A small repetitive sawtooth-like stopped-phase structure was observed while
+piecewise antenna tracking was active. The structure disappeared when tracking
+was stopped, so it is currently treated as tracking/mount/pointing related
+rather than a Stage-8 fringe-stop sign error.

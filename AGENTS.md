@@ -6,7 +6,7 @@ Read `FX_CORRELATOR_SPEC.md` before making architectural or DSP changes.
 If implementation details conflict with the specification, stop and report the conflict rather than silently changing the design.
 
 ## Current milestone
-The current task is Stage 8 only: broadband visibility and fringe stopping.
+The current task is Stage 9 only: coherent visibility integration and phase-stability advisor.
 
 Stage 1-4 coherent FX engine and differential-delay estimator are validated on the real B210 system.
 
@@ -20,7 +20,11 @@ Progression to Stage 8 has been authorised after Stage-7 implementation and comm
 
 Stage 8 may coherently combine Stage-7 corrected frequency channels, preserve the unstopped broadband visibility, apply centre-frequency geometric fringe stopping, and display unstopped and stopped complex visibility.
 
-Do not implement Stage 9 temporal integration / stability advisor, logging, calibration solving, imaging or OOT migration until Stage 8 is experimentally validated.
+Stage 8 primary acceptance passed on a Moon observation. The operational fringe-stop sign is now confirmed as Normal (-phi_geo).
+
+Stage 9 may coherently integrate the native Stage-8 stopped visibility over operator-selected non-overlapping windows and display advisory phase-stability/coherence diagnostics.
+
+Do not implement Stage 10 logging, calibration solving, rho, flux calibration, imaging, OOT migration or multi-B210 work until Stage 9 is experimentally validated.
 
 ## Target environment
 - Ubuntu 24.04.4
