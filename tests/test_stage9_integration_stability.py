@@ -244,8 +244,9 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         }:
             self.assertIn(name, blocks)
 
-        self.assertEqual(blocks["integration_time_s"]["parameters"]["value"], "1.0")
-        self.assertEqual(blocks["integration_time_s"]["parameters"]["type"], "real")
+        self.assertEqual(blocks["integration_time_s"]["parameters"]["value"], '"1.0"')
+        self.assertEqual(blocks["integration_time_s"]["parameters"]["type"], "string")
+        self.assertEqual(blocks["integration_time_s"]["parameters"]["option3"], '"1.0"')
         self.assertEqual(blocks["phase_rate_fit_window_s"]["parameters"]["value"], "60.0")
         self.assertEqual(blocks["coherence_target_pct"]["parameters"]["value"], "95.0")
         self.assertIn("general_work", blocks["coherent_visibility_integrator"]["parameters"]["_source_code"])
