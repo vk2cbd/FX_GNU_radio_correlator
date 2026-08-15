@@ -257,7 +257,7 @@ blocks:
     option4: '2.0'
     options: '[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 60.0]'
     orient: Qt.QHBoxLayout
-    type: float
+    type: real
     value: '1.0'
     widget: combo_box
   states:
@@ -2826,6 +2826,42 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: phase_stability_effective_integration_null
+  id: blocks_null_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    bus_structure_sink: '[[0,],]'
+    comment: 'Terminate duplicate Stage 9 advisor effective-integration output; coherent integrator already displays this value.'
+    num_inputs: '1'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [5224, 1960.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: phase_stability_n_int_null
+  id: blocks_null_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    bus_structure_sink: '[[0,],]'
+    comment: 'Terminate duplicate Stage 9 advisor integration-sample-count output; coherent integrator already displays this value.'
+    num_inputs: '1'
+    type: float
+    vlen: '1'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [5224, 2048.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: integrated_visibility_mag
   id: blocks_complex_to_mag
   parameters:
@@ -3710,6 +3746,8 @@ connections:
 - [phase_stability_advisor, '2', stage9_number_sink, '8']
 - [phase_stability_advisor, '3', stage9_number_sink, '9']
 - [phase_stability_advisor, '4', stage9_number_sink, '0']
+- [phase_stability_advisor, '5', phase_stability_effective_integration_null, '0']
+- [phase_stability_advisor, '6', phase_stability_n_int_null, '0']
 - [phase_slope_delay_estimator, '0', delay_number_sink, '0']
 - [phase_slope_delay_estimator, '1', phase_slope_number_sink, '0']
 - [phase_slope_delay_estimator, '2', phase_fit_rms_number_sink, '0']

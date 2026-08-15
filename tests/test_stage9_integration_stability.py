@@ -245,10 +245,13 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
             self.assertIn(name, blocks)
 
         self.assertEqual(blocks["integration_time_s"]["parameters"]["value"], "1.0")
+        self.assertEqual(blocks["integration_time_s"]["parameters"]["type"], "real")
         self.assertEqual(blocks["phase_rate_fit_window_s"]["parameters"]["value"], "60.0")
         self.assertEqual(blocks["coherence_target_pct"]["parameters"]["value"], "95.0")
         self.assertIn("general_work", blocks["coherent_visibility_integrator"]["parameters"]["_source_code"])
         self.assertIn("np.unwrap(np.angle(values))", blocks["phase_stability_advisor"]["parameters"]["_source_code"])
+        self.assertEqual(blocks["phase_stability_effective_integration_null"]["id"], "blocks_null_sink")
+        self.assertEqual(blocks["phase_stability_n_int_null"]["id"], "blocks_null_sink")
 
         connections = {tuple(connection) for connection in graph["connections"]}
         expected = {
@@ -259,6 +262,8 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
             ("coherent_visibility_integrator", "0", "integrated_visibility_mag", "0"),
             ("coherent_visibility_integrator", "1", "stage9_number_sink", "5"),
             ("phase_stability_advisor", "0", "stage9_number_sink", "6"),
+            ("phase_stability_advisor", "5", "phase_stability_effective_integration_null", "0"),
+            ("phase_stability_advisor", "6", "phase_stability_n_int_null", "0"),
         }
         self.assertTrue(expected.issubset(connections))
         self.assertNotIn(("broadband_visibility_combiner", "0", "coherent_visibility_integrator", "0"), connections)
