@@ -82,6 +82,13 @@ def run_advisor(block, samples):
     return tuple(out[:produced].copy() for out in outputs)
 
 
+def phase_ramp_samples(rate_deg_s, visibility_rate=10.0, duration_s=60.0, phi0_rad=0.37, amplitude=2.0):
+    n_samples = int(round(float(visibility_rate) * float(duration_s)))
+    t = np.arange(n_samples, dtype=np.float64) / float(visibility_rate)
+    phase = float(phi0_rad) + math.radians(float(rate_deg_s)) * t
+    return (float(amplitude) * np.exp(1j * phase)).astype(np.complex64)
+
+
 def measured_coherence_pct(samples):
     samples = np.asarray(samples, dtype=np.complex64)
     denom = np.sum(np.abs(samples), dtype=np.float64)
@@ -231,6 +238,47 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         self.assertTrue(np.isfinite(outputs[0][-1]))
         self.assertTrue(np.isfinite(outputs[1][-1]))
 
+    def test_advisor_measures_positive_bypassed_solar_phase_rate(self):
+        expected_rate = 2.26296
+        duration_s = 600.0
+        block = advisor_module.blk(
+            visibility_rate=10.0,
+            integration_time_s=1.0,
+            phase_rate_fit_window_s=duration_s,
+        )
+        samples = phase_ramp_samples(expected_rate, duration_s=duration_s)
+        outputs = run_advisor(block, samples)
+        self.assertAlmostEqual(outputs[0][-1], expected_rate, delta=0.001)
+        self.assertGreater(outputs[0][-1], 0.0)
+        self.assertLess(outputs[1][-1], 0.001)
+
+    def test_advisor_measures_negative_bypassed_solar_phase_rate(self):
+        expected_rate = -2.26296
+        duration_s = 600.0
+        block = advisor_module.blk(
+            visibility_rate=10.0,
+            integration_time_s=1.0,
+            phase_rate_fit_window_s=duration_s,
+        )
+        samples = phase_ramp_samples(expected_rate, duration_s=duration_s)
+        outputs = run_advisor(block, samples)
+        self.assertAlmostEqual(outputs[0][-1], expected_rate, delta=0.001)
+        self.assertLess(outputs[0][-1], 0.0)
+        self.assertLess(outputs[1][-1], 0.001)
+
+    def test_advisor_measures_small_stopped_phase_rate(self):
+        expected_rate = 0.02
+        block = advisor_module.blk(
+            visibility_rate=10.0,
+            integration_time_s=1.0,
+            phase_rate_fit_window_s=60.0,
+        )
+        samples = phase_ramp_samples(expected_rate, duration_s=60.0)
+        outputs = run_advisor(block, samples)
+        self.assertAlmostEqual(outputs[0][-1], expected_rate, delta=0.001)
+        self.assertGreater(outputs[0][-1], 0.0)
+        self.assertLess(outputs[1][-1], 0.001)
+
     def test_grc_stage9_controls_blocks_and_connections(self):
         graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
@@ -241,6 +289,7 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
             "coherent_visibility_integrator",
             "phase_stability_advisor",
             "stage9_number_sink",
+            "stage9_phase_stability_number_sink",
         }:
             self.assertIn(name, blocks)
 
@@ -254,6 +303,8 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         self.assertIn("np.unwrap(np.angle(values))", blocks["phase_stability_advisor"]["parameters"]["_source_code"])
         self.assertEqual(blocks["phase_stability_effective_integration_null"]["id"], "blocks_null_sink")
         self.assertEqual(blocks["phase_stability_n_int_null"]["id"], "blocks_null_sink")
+        self.assertEqual(blocks["stage9_number_sink"]["parameters"]["nconnections"], "5")
+        self.assertEqual(blocks["stage9_phase_stability_number_sink"]["parameters"]["nconnections"], "5")
 
         connections = {tuple(connection) for connection in graph["connections"]}
         expected = {
@@ -262,13 +313,26 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
             ("fringe_stop_corrector", "0", "coherent_visibility_integrator", "0"),
             ("fringe_stop_corrector", "0", "phase_stability_advisor", "0"),
             ("coherent_visibility_integrator", "0", "integrated_visibility_mag", "0"),
-            ("coherent_visibility_integrator", "1", "stage9_number_sink", "5"),
-            ("phase_stability_advisor", "0", "stage9_number_sink", "6"),
+            ("coherent_visibility_integrator", "1", "stage9_number_sink", "4"),
+            ("phase_stability_advisor", "0", "stage9_phase_stability_number_sink", "1"),
             ("phase_stability_advisor", "5", "phase_stability_effective_integration_null", "0"),
             ("phase_stability_advisor", "6", "phase_stability_n_int_null", "0"),
         }
         self.assertTrue(expected.issubset(connections))
         self.assertNotIn(("broadband_visibility_combiner", "0", "coherent_visibility_integrator", "0"), connections)
+        self.assertFalse(
+            any(
+                connection[0] == "phase_stability_advisor" and connection[2] == "stage9_number_sink"
+                for connection in connections
+            )
+        )
+        self.assertFalse(
+            any(
+                connection[0] == "coherent_visibility_integrator"
+                and connection[2] == "stage9_phase_stability_number_sink"
+                for connection in connections
+            )
+        )
 
     def test_existing_block_coordinates_are_unchanged(self):
         old = head_grc()

@@ -2909,16 +2909,80 @@ blocks:
     autoscale: 'True'
     avg: '0'
     color1: '("blue", "red")'
-    color10: '("blue", "red")'
+    color10: '("black", "black")'
     color2: '("blue", "red")'
     color3: '("blue", "red")'
     color4: '("blue", "red")'
     color5: '("blue", "red")'
-    color6: '("blue", "red")'
-    color7: '("blue", "red")'
-    color8: '("blue", "red")'
-    color9: '("blue", "red")'
-    comment: 'Stage 9 coherent integration and phase-stability numerical diagnostics.'
+    color6: '("black", "black")'
+    color7: '("black", "black")'
+    color8: '("black", "black")'
+    color9: '("black", "black")'
+    comment: 'Stage 9 coherent integration numerical diagnostics. All inputs share the completed-integration cadence.'
+    factor1: '1'
+    factor10: '1'
+    factor2: '1'
+    factor3: '1'
+    factor4: '1'
+    factor5: '1'
+    factor6: '1'
+    factor7: '1'
+    factor8: '1'
+    factor9: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Effective Integration
+    label10: ''
+    label2: Integration Samples
+    label3: Integrated Stopped Amplitude
+    label4: Integrated Stopped Phase
+    label5: Window Coherence Retained
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    max: '100'
+    min: '-100'
+    name: '"Stage 9 / Coherent Integration"'
+    nconnections: '5'
+    type: float
+    unit1: s
+    unit10: ''
+    unit2: samples
+    unit3: ''
+    unit4: deg
+    unit5: '%'
+    unit6: ''
+    unit7: ''
+    unit8: ''
+    unit9: ''
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [5760, 720.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stage9_phase_stability_number_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'True'
+    avg: '0'
+    color1: '("blue", "red")'
+    color10: '("black", "black")'
+    color2: '("blue", "red")'
+    color3: '("blue", "red")'
+    color4: '("blue", "red")'
+    color5: '("blue", "red")'
+    color6: '("black", "black")'
+    color7: '("black", "black")'
+    color8: '("black", "black")'
+    color9: '("black", "black")'
+    comment: 'Stage 9 phase-stability numerical diagnostics. All inputs come from the native-rate advisor block.'
     factor1: '1'
     factor10: '1'
     factor2: '1'
@@ -2932,36 +2996,36 @@ blocks:
     graph_type: qtgui.NUM_GRAPH_NONE
     gui_hint: ''
     label1: Requested Integration
-    label10: Recommended Max Integration
-    label2: Effective Integration
-    label3: Integration Samples
-    label4: Integrated Stopped Amplitude
-    label5: Integrated Stopped Phase
-    label6: Window Coherence Retained
-    label7: Residual Phase Rate
-    label8: Residual Phase Fit RMS
-    label9: Rate-Based Coherence
+    label10: ''
+    label2: Residual Phase Rate
+    label3: Residual Phase Fit RMS
+    label4: Rate-Based Coherence
+    label5: Recommended Max Integration
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
     max: '100'
     min: '-100'
-    name: '"Stage 9 / Integration + Stability"'
-    nconnections: '10'
+    name: '"Stage 9 / Phase Stability"'
+    nconnections: '5'
     type: float
     unit1: s
-    unit10: s
-    unit2: s
-    unit3: samples
-    unit4: ''
-    unit5: deg
-    unit6: '%'
-    unit7: deg/s
-    unit8: deg
-    unit9: '%'
+    unit10: ''
+    unit2: deg/s
+    unit3: deg
+    unit4: '%'
+    unit5: s
+    unit6: ''
+    unit7: ''
+    unit8: ''
+    unit9: ''
     update_time: '0.25'
   states:
     bus_sink: false
     bus_source: false
     bus_structure: null
-    coordinate: [5760, 720.0]
+    coordinate: [5760, 1008.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -3704,9 +3768,9 @@ connections:
 - [cross_phase_rad, '0', cross_phase_deg, '0']
 - [coherent_visibility_integrator, '0', integrated_visibility_mag, '0']
 - [coherent_visibility_integrator, '0', integrated_visibility_phase_rad, '0']
-- [coherent_visibility_integrator, '1', stage9_number_sink, '5']
-- [coherent_visibility_integrator, '2', stage9_number_sink, '1']
-- [coherent_visibility_integrator, '3', stage9_number_sink, '2']
+- [coherent_visibility_integrator, '1', stage9_number_sink, '4']
+- [coherent_visibility_integrator, '2', stage9_number_sink, '0']
+- [coherent_visibility_integrator, '3', stage9_number_sink, '1']
 - [fringe_stop_corrector, '0', coherent_visibility_integrator, '0']
 - [fringe_stop_corrector, '0', phase_stability_advisor, '0']
 - [fringe_stop_corrector, '0', stopped_complex_to_float, '0']
@@ -3724,14 +3788,14 @@ connections:
 - [unstopped_visibility_phase_deg, '0', visibility_number_sink, '1']
 - [unstopped_visibility_phase_deg, '0', visibility_phase_time_sink, '0']
 - [unstopped_visibility_phase_rad, '0', unstopped_visibility_phase_deg, '0']
-- [integrated_visibility_mag, '0', stage9_number_sink, '3']
-- [integrated_visibility_phase_deg, '0', stage9_number_sink, '4']
+- [integrated_visibility_mag, '0', stage9_number_sink, '2']
+- [integrated_visibility_phase_deg, '0', stage9_number_sink, '3']
 - [integrated_visibility_phase_rad, '0', integrated_visibility_phase_deg, '0']
-- [phase_stability_advisor, '0', stage9_number_sink, '6']
-- [phase_stability_advisor, '1', stage9_number_sink, '7']
-- [phase_stability_advisor, '2', stage9_number_sink, '8']
-- [phase_stability_advisor, '3', stage9_number_sink, '9']
-- [phase_stability_advisor, '4', stage9_number_sink, '0']
+- [phase_stability_advisor, '0', stage9_phase_stability_number_sink, '1']
+- [phase_stability_advisor, '1', stage9_phase_stability_number_sink, '2']
+- [phase_stability_advisor, '2', stage9_phase_stability_number_sink, '3']
+- [phase_stability_advisor, '3', stage9_phase_stability_number_sink, '4']
+- [phase_stability_advisor, '4', stage9_phase_stability_number_sink, '0']
 - [phase_stability_advisor, '5', phase_stability_effective_integration_null, '0']
 - [phase_stability_advisor, '6', phase_stability_n_int_null, '0']
 - [phase_slope_delay_estimator, '0', delay_number_sink, '0']
