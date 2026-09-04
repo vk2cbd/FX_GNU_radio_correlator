@@ -6,7 +6,7 @@ Read `FX_CORRELATOR_SPEC.md` before making architectural or DSP changes.
 If implementation details conflict with the specification, stop and report the conflict rather than silently changing the design.
 
 ## Current milestone
-The current task is Stage 9 only: coherent visibility integration and phase-stability advisor.
+The current task is Stage 10 only: FITS-IDI visibility recording.
 
 Stage 1-4 coherent FX engine and differential-delay estimator are validated on the real B210 system.
 
@@ -22,9 +22,11 @@ Stage 8 may coherently combine Stage-7 corrected frequency channels, preserve th
 
 Stage 8 primary acceptance passed on a Moon observation. The operational fringe-stop sign is now confirmed as Normal (-phi_geo).
 
-Stage 9 may coherently integrate the native Stage-8 stopped visibility over operator-selected non-overlapping windows and display advisory phase-stability/coherence diagnostics.
+Stage 9 coherently integrates the native Stage-8 stopped visibility over operator-selected non-overlapping windows and displays advisory phase-stability/coherence diagnostics.
 
-Do not implement Stage 10 logging, calibration solving, rho, flux calibration, imaging, OOT migration or multi-B210 work until Stage 9 is experimentally validated.
+Stage 9 has been experimentally validated sufficiently through 30-second coherent integration to permit Stage 10. The 60-second experiment was not completed; it was not a failure.
+
+Stage 10 may optionally record the Stage-9 integrated fringe-stopped visibility to FITS-IDI using Astropy only, with a diagnostic CSV sidecar. Do not implement calibration solving, rho, flux calibration, imaging, OOT migration or multi-B210 work until Stage 10 is experimentally validated.
 
 ## Target environment
 - Ubuntu 24.04.4

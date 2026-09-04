@@ -20,6 +20,9 @@ cmake-build-*/
 observations/*.csv
 observations/*.h5
 observations/*.hdf5
+*.fitsidi
+*.partial.fitsidi
+*_diagnostics.csv
 calibration/*.h5
 calibration/*.hdf5
 

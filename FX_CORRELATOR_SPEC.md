@@ -246,8 +246,8 @@ History choices:
 ## 23. Logging
 Visibility logging:
 - optional, default OFF
-- CSV
-- one row per integrated visibility
+- FITS-IDI primary scientific visibility recording
+- one row per integrated Stage-9 fringe-stopped visibility
 
 Fields shall include at least:
 - UTC
@@ -271,6 +271,10 @@ Fields shall include at least:
 - calibration state
 - residual phase rate where available
 
+CSV visibility output is not the primary scientific archive for Stage 10.
+CSV may be produced only as an optional diagnostic sidecar for human inspection
+and validation.
+
 Spectral logging:
 - optional, default OFF
 - HDF5 preferred
@@ -293,7 +297,7 @@ Likely Embedded Python blocks:
 - astronomy geometry / visibility corrector
 - runtime visibility integrator
 - phase-stability monitor
-- visibility CSV logger
+- FITS-IDI visibility recorder with optional diagnostic CSV sidecar
 - spectral HDF5 logger
 
 Migrate to an OOT module only after behaviour is stable and tested.
