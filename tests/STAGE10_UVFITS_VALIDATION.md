@@ -21,11 +21,12 @@ The flowgraph does not synchronously connect Stage-5 astronomy or Stage-6 geomet
 
 The GRC file exposes:
 
+- `Source`: `Sun`, `Moon`, `Manual RA/Dec`
 - `Observation Name`
 - `UVFITS Output Directory`
-- `Record UVFITS`
+- `Start / Stop UV Logging`
 
-Recording defaults OFF. Switching Record UVFITS ON starts a new observation. Switching it OFF stops intake and finalizes the UVFITS file.
+Recording defaults OFF. Pressing the UV logging toggle starts a new observation. Pressing it again stops intake and finalizes the UVFITS file.
 
 The GRC status sink shows:
 
@@ -33,6 +34,16 @@ The GRC status sink shows:
 - Records Captured
 
 The current output filename is printed in the GNU Radio terminal at start/finalize and is stored in the SQLite journal. A standard text-valued dynamic display has not yet been added to the GRC GUI.
+
+## Persistent Settings
+
+Stage 10 stores practical operator settings outside the repository in:
+
+`~/.config/FX_GNU_radio_correlator/settings.json`
+
+The settings file includes `settings_version = 1`. Missing, corrupt, incomplete, or unknown settings are ignored safely and project defaults are used.
+
+The active UV logging state is not persisted. Every application launch starts with UV logging OFF, even if the previous run ended while recording.
 
 ## File Design
 
@@ -156,20 +167,24 @@ This is software validation only. It does not prove B210 hardware or on-sky reco
 
 4. Generate the flowgraph normally in GNU Radio Companion. Confirm the new Stage-10 controls and status sink are visible.
 
-5. Use Manual RA/Dec source mode for the first Stage-10 UVFITS tests. Sun UVFITS recording is intentionally blocked until the ephemeris limitation is resolved.
+5. Confirm the Source selector contains exactly `Sun`, `Moon`, and `Manual RA/Dec`.
 
-6. Confirm the science prerequisites before recording:
+6. Select `Moon` and confirm apparent RA/Dec, HA, Az/El, Stage-6 UVW, geometric delay and fringe phase remain finite and update with time.
+
+7. Use Manual RA/Dec source mode for the first Stage-10 UVFITS file-writing tests. Sun and Moon UVFITS recording are intentionally blocked until the moving-ephemeris file-format limitation is resolved.
+
+8. Confirm the science prerequisites before recording:
 
    - Stage-7 delay correction enabled
    - Stage-8 fringe stop enabled
    - Stage-8 fringe-stop sign Normal `(-phi_geo)`
    - Stage-9 integration selected as desired
 
-7. Set an observation name and output directory. Leave Record UVFITS OFF while checking spectra and visibility.
+9. Set an observation name and output directory. Leave UV logging OFF while checking spectra and visibility.
 
-8. Switch Record UVFITS ON. Confirm the terminal prints the output filename and the status state becomes `1`.
+10. Press `Start / Stop UV Logging`. Confirm the terminal prints the output filename and the status state becomes `1`.
 
-9. Record a short test, then switch Record UVFITS OFF. Confirm:
+11. Record a short test, then press the UV logging toggle again. Confirm:
 
    - state becomes `3`
    - Records Captured is non-zero
@@ -177,7 +192,7 @@ This is software validation only. It does not prove B210 hardware or on-sky reco
    - diagnostics CSV exists
    - no `.stage10.sqlite` journal remains after successful finalization
 
-10. Inspect the finished file:
+12. Inspect the finished file:
 
     ```bash
     python3 - <<'PY'
@@ -199,13 +214,25 @@ This is software validation only. It does not prove B210 hardware or on-sky reco
     PY
     ```
 
-11. If finalization fails and a `.stage10.sqlite` journal remains, recover with:
+13. If finalization fails and a `.stage10.sqlite` journal remains, recover with:
 
     ```bash
     python3 tools/recover_stage10_uvfits.py path/to/observation.stage10.sqlite
     ```
 
-12. For the first on-sky acceptance run, record 5 to 10 minutes with Manual RA/Dec matching the source. Compare:
+14. Test persistence:
+
+    - set Source to `Moon`
+    - set observation name to `test_moon`
+    - set output directory to `~/FX_Correlator_Data/Test`
+    - set Stage-9 integration to `5.0`
+    - close and restart the application
+    - verify these settings are restored
+    - verify UV logging still starts OFF
+
+15. Corrupt or remove `~/.config/FX_GNU_radio_correlator/settings.json`, then restart. Confirm the flowgraph launches with defaults.
+
+16. For the first on-sky acceptance run, record 5 to 10 minutes with Manual RA/Dec matching the source. Compare:
 
     - number of records with expected Stage-9 integration cadence
     - first/last UTC
@@ -216,8 +243,9 @@ This is software validation only. It does not prove B210 hardware or on-sky reco
 
 ## Known Limitations
 
-- Sun source mode cannot yet be claimed as Stage-10 accepted for UVFITS with `pyuvdata 3.2.7`; recording is explicitly rejected rather than written inconsistently.
+- Sun and Moon source modes cannot yet be claimed as Stage-10 accepted for UVFITS with `pyuvdata 3.2.7`; recording is explicitly rejected rather than silently freezing a moving ephemeris phase centre.
 - Timestamps are host-clock estimates of integration-centre UTC, not PPS/sample-accurate hardware timestamps.
 - The current output filename is terminal/journal visible, not dynamically displayed as text in the GRC GUI.
+- The standard GRC toggle button uses a static label in this implementation; the Recording State sink remains the authoritative OFF/RECORDING/FINALIZING/COMPLETE/ERROR display.
 - Visibility units are `uncalib`; the file does not claim Jy or Stokes I.
 - No B210 hardware validation is implied by the Windows software tests.

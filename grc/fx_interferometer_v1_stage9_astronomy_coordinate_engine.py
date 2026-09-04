@@ -4,12 +4,16 @@ import numpy as np
 from gnuradio import gr
 
 from astropy import units as u
-from astropy.coordinates import AltAz, EarthLocation, SkyCoord, TETE, get_sun
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord, TETE, get_body, get_sun
 from astropy.time import Time
 from astropy.utils import iers
 
 iers.conf.auto_download = False
 iers.conf.iers_degraded_accuracy = 'warn'
+
+SOURCE_SUN = 0
+SOURCE_MOON = 1
+SOURCE_MANUAL = 2
 
 
 class blk(gr.sync_block):
@@ -92,14 +96,18 @@ class blk(gr.sync_block):
         obstime = Time.now()
         obstime.location = location
 
-        if source_mode == 0:
+        if source_mode == SOURCE_SUN:
             source_coord = get_sun(obstime)
-        else:
+        elif source_mode == SOURCE_MOON:
+            source_coord = get_body("moon", obstime, location)
+        elif source_mode == SOURCE_MANUAL:
             source_coord = SkyCoord(
                 ra=manual_ra_hours * u.hourangle,
                 dec=manual_dec_deg * u.deg,
                 frame='icrs',
             )
+        else:
+            source_coord = get_sun(obstime)
 
         apparent = source_coord.transform_to(TETE(obstime=obstime, location=location))
         altaz = source_coord.transform_to(

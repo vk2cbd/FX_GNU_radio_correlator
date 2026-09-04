@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 from astropy import units as u
-from astropy.coordinates import AltAz, EarthLocation, SkyCoord, TETE, get_sun
+from astropy.coordinates import AltAz, EarthLocation, SkyCoord, TETE, get_body, get_sun
 from astropy.time import Time
 from astropy.utils import iers
 
@@ -35,7 +35,13 @@ STATE_NAMES = {
 }
 
 SOURCE_SUN = 0
-SOURCE_MANUAL = 1
+SOURCE_MOON = 1
+SOURCE_MANUAL = 2
+SOURCE_NAMES = {
+    SOURCE_SUN: "Sun",
+    SOURCE_MOON: "Moon",
+    SOURCE_MANUAL: "Manual",
+}
 
 DEFAULT_POLARIZATION = "xx"
 TELESCOPE_NAME = "FX_GNU_RADIO_INTERFEROMETER"
@@ -73,19 +79,20 @@ class Stage10Config:
     gnuradio_version: str = "unknown"
 
     def source_name(self):
-        return "Sun" if int(self.source_mode) == SOURCE_SUN else "Manual"
+        return SOURCE_NAMES.get(int(self.source_mode), "Sun")
 
     def validate_for_science_recording(self):
         if not bool(self.delay_correction_enabled):
             raise ValueError("UVFITS recording cannot start: delay correction is disabled.")
         if not bool(self.fringe_stop_enabled) or int(self.fringe_stop_sign) != -1:
             raise ValueError("UVFITS recording cannot start: fringe-stop mode is not Normal (-phi_geo).")
-        if int(self.source_mode) == SOURCE_SUN:
+        if int(self.source_mode) in (SOURCE_SUN, SOURCE_MOON):
+            source_name = self.source_name()
             version = pyuvdata_version() or "the installed pyuvdata version"
             raise ValueError(
-                f"UVFITS recording cannot start: pyuvdata {version} does not write moving Sun "
+                f"UVFITS recording cannot start: pyuvdata {version} does not write moving {source_name} "
                 "ephemeris phase centres to UVFITS without force-phasing. Use Manual RA/Dec "
-                "for Stage 10 recording until the Sun file-format path is resolved."
+                f"for Stage 10 recording until the {source_name} file-format path is resolved."
             )
         if int(self.fft_size) <= 0:
             raise ValueError("UVFITS recording cannot start: FFT size is invalid.")
@@ -228,11 +235,16 @@ def source_metadata(config, center_time):
         obstime = Time(center_time.utc.jd, format="jd", scale="utc", location=location)
     else:
         obstime = Time(center_time, scale="utc", location=location)
-    if int(config.source_mode) == SOURCE_SUN:
+    source_mode = int(config.source_mode)
+    if source_mode == SOURCE_SUN:
         source_coord = get_sun(obstime)
         cat_name = "Sun"
         cat_type = "ephem"
-    else:
+    elif source_mode == SOURCE_MOON:
+        source_coord = get_body("moon", obstime, location)
+        cat_name = "Moon"
+        cat_type = "ephem"
+    elif source_mode == SOURCE_MANUAL:
         source_coord = SkyCoord(
             ra=float(config.manual_ra_hours) * u.hourangle,
             dec=float(config.manual_dec_deg) * u.deg,
@@ -240,6 +252,10 @@ def source_metadata(config, center_time):
         )
         cat_name = "Manual"
         cat_type = "sidereal"
+    else:
+        source_coord = get_sun(obstime)
+        cat_name = "Sun"
+        cat_type = "ephem"
 
     apparent = source_coord.transform_to(TETE(obstime=obstime, location=location))
     altaz = source_coord.transform_to(AltAz(obstime=obstime, location=location, pressure=0 * u.hPa))
@@ -402,13 +418,14 @@ def antenna_offsets_to_enu(config, antenna_positions):
 
 
 def phase_center_catalog(config, records):
-    if int(config.source_mode) == SOURCE_SUN:
+    if int(config.source_mode) in (SOURCE_SUN, SOURCE_MOON):
         times = np.array([record.integration_center_jd for record in records], dtype=np.float64)
         lon = np.radians([record.apparent_ra_h * 15.0 for record in records])
         lat = np.radians([record.apparent_dec_deg for record in records])
+        source_name = sanitize_component(config.source_name(), "source")
         return {
             0: {
-                "cat_name": "Sun",
+                "cat_name": source_name,
                 "cat_type": "ephem",
                 "cat_lon": lon,
                 "cat_lat": lat,
@@ -419,7 +436,7 @@ def phase_center_catalog(config, records):
                 "cat_pm_dec": None,
                 "cat_vrad": None,
                 "cat_dist": None,
-                "info_source": "Stage 10 Astropy apparent solar ephemeris",
+                "info_source": f"Stage 10 Astropy apparent {source_name} ephemeris",
             }
         }
     return {

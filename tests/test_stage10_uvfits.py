@@ -1,5 +1,6 @@
 import importlib.util
 import math
+import os
 import pathlib
 import subprocess
 import sys
@@ -42,6 +43,10 @@ def load_module(module_name, path):
 writer = load_module("stage10_writer", "grc/fx_interferometer_v1_stage10_uvfits_writer.py")
 install_gnuradio_stub()
 recorder = load_module("stage10_recorder", "grc/fx_interferometer_v1_stage10_uvfits_recorder.py")
+settings = load_module("stage10_settings", "grc/fx_interferometer_v1_stage10_settings.py")
+settings_persistence = load_module(
+    "stage10_settings_persistence", "grc/fx_interferometer_v1_stage10_settings_persistence.py"
+)
 
 
 def pyuvdata_available():
@@ -179,6 +184,26 @@ class Stage10UVFITSTests(unittest.TestCase):
         config = writer.Stage10Config(source_mode=writer.SOURCE_SUN)
         with self.assertRaisesRegex(ValueError, "moving Sun ephemeris"):
             config.validate_for_science_recording()
+
+    def test_moon_uvfits_recording_is_explicitly_rejected_until_ephem_path_is_resolved(self):
+        config = writer.Stage10Config(source_mode=writer.SOURCE_MOON)
+        with self.assertRaisesRegex(ValueError, "moving Moon ephemeris"):
+            config.validate_for_science_recording()
+
+    def test_moon_metadata_is_time_varying_and_identified_as_moon(self):
+        config = writer.Stage10Config(source_mode=writer.SOURCE_MOON)
+        t0 = Time("2026-09-04T00:00:00", scale="utc")
+        t1 = Time("2026-09-04T01:00:00", scale="utc")
+        m0 = writer.source_metadata(config, t0)
+        m1 = writer.source_metadata(config, t1)
+        self.assertEqual(m0["cat_name"], "Moon")
+        self.assertEqual(m0["cat_type"], "ephem")
+        for meta in (m0, m1):
+            for key in ("apparent_ra_h", "apparent_dec_deg", "lmst_h", "ha_h", "az_deg", "el_deg"):
+                self.assertTrue(math.isfinite(float(meta[key])))
+            self.assertTrue(np.all(np.isfinite(meta["uvw_m"])))
+        self.assertNotAlmostEqual(m0["apparent_ra_h"], m1["apparent_ra_h"], places=3)
+        self.assertNotAlmostEqual(m0["az_deg"], m1["az_deg"], places=3)
 
     def test_journal_recovery_writes_readable_uvfits_and_diagnostics(self):
         from pyuvdata import UVData
@@ -341,19 +366,30 @@ class Stage10UVFITSTests(unittest.TestCase):
             "observation_name",
             "uvfits_output_dir",
             "record_uvfits",
+            "stage10_settings_import",
+            "stage10_settings_persistence",
             "stage10_polarization",
             "stage10_queue_max_records",
             "uvfits_visibility_recorder",
             "stage10_recording_status_sink",
         }:
             self.assertIn(name, blocks)
+        self.assertEqual(blocks["record_uvfits"]["id"], "variable_qtgui_toggle_button_msg")
         self.assertEqual(blocks["record_uvfits"]["parameters"]["value"], "False")
+        self.assertNotIn("fx_settings_load", blocks["record_uvfits"]["parameters"]["value"])
+        self.assertEqual(blocks["source_mode"]["parameters"]["options"], "[0, 1, 2]")
+        self.assertEqual(blocks["source_mode"]["parameters"]["label0"], "Sun")
+        self.assertEqual(blocks["source_mode"]["parameters"]["label1"], "Moon")
+        self.assertEqual(blocks["source_mode"]["parameters"]["label2"], "Manual RA/Dec")
         self.assertEqual(blocks["stage10_polarization"]["parameters"]["value"], '"xx"')
         self.assertEqual(blocks["stage10_recording_status_sink"]["parameters"]["nconnections"], "2")
         recorder_code = blocks["uvfits_visibility_recorder"]["parameters"]["_source_code"]
         self.assertIn("_add_stage10_module_paths()", recorder_code)
         self.assertIn("from fx_interferometer_v1_stage10_uvfits_recorder import blk", recorder_code)
         self.assertIn("except Exception as _stage10_import_error", recorder_code)
+        astronomy_code = blocks["astronomy_coordinate_engine"]["parameters"]["_source_code"]
+        self.assertIn("from fx_interferometer_v1_stage9_astronomy_coordinate_engine import blk", astronomy_code)
+        self.assertIn("except Exception as _stage5_import_error", astronomy_code)
 
         connections = {tuple(connection) for connection in graph["connections"]}
         expected = {
@@ -366,6 +402,47 @@ class Stage10UVFITSTests(unittest.TestCase):
         }
         self.assertTrue(expected.issubset(connections))
         self.assertFalse(any(c[2] == "uvfits_visibility_recorder" and c[0] in {"astronomy_coordinate_engine", "baseline_geometry_engine"} for c in connections))
+
+    def test_settings_json_tolerates_missing_corrupt_and_persists_values(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old_env = os.environ.get(settings.ENV_SETTINGS_PATH)
+            os.environ[settings.ENV_SETTINGS_PATH] = str(pathlib.Path(tmp) / "settings.json")
+            try:
+                self.assertEqual(settings.load_setting("source_mode", None), writer.SOURCE_SUN)
+                settings.settings_path().write_text("{corrupt", encoding="utf-8")
+                self.assertEqual(settings.load_setting("source_mode", None), writer.SOURCE_SUN)
+                settings.save_settings(source_mode=writer.SOURCE_MOON, observation_name="test_moon")
+                loaded = settings.load_settings()
+                self.assertEqual(loaded["settings_version"], 1)
+                self.assertEqual(loaded["source_mode"], writer.SOURCE_MOON)
+                self.assertEqual(loaded["observation_name"], "test_moon")
+                settings.save_settings(record_uvfits=True)
+                raw = settings.settings_path().read_text(encoding="utf-8")
+                self.assertNotIn("record_uvfits", raw)
+            finally:
+                if old_env is None:
+                    os.environ.pop(settings.ENV_SETTINGS_PATH, None)
+                else:
+                    os.environ[settings.ENV_SETTINGS_PATH] = old_env
+
+    def test_settings_persistence_block_saves_on_variable_setters(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old_env = os.environ.get(settings.ENV_SETTINGS_PATH)
+            os.environ[settings.ENV_SETTINGS_PATH] = str(pathlib.Path(tmp) / "settings.json")
+            try:
+                block = settings_persistence.blk(source_mode=writer.SOURCE_MOON, observation_name="moon_test")
+                self.assertEqual(settings.load_setting("source_mode"), writer.SOURCE_MOON)
+                self.assertEqual(settings.load_setting("observation_name"), "moon_test")
+                block.set_integration_time_s("5.0")
+                block.set_uvfits_output_dir("~/FX_Correlator_Data/Test")
+                loaded = settings.load_settings()
+                self.assertEqual(loaded["integration_time_s"], "5.0")
+                self.assertEqual(loaded["uvfits_output_dir"], "~/FX_Correlator_Data/Test")
+            finally:
+                if old_env is None:
+                    os.environ.pop(settings.ENV_SETTINGS_PATH, None)
+                else:
+                    os.environ[settings.ENV_SETTINGS_PATH] = old_env
 
     def test_existing_grc_block_layout_and_connections_are_preserved(self):
         try:
