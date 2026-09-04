@@ -26,7 +26,8 @@ class blk(gr.sync_block):
     """Stage 10 low-rate FITS-IDI visibility recorder.
 
     Inputs are the aligned Stage-9 coherent integrator outputs:
-    V_stopped, window coherence percent, effective integration seconds, and N_int.
+    V_stopped, window coherence percent, effective integration seconds, N_int,
+    and a low-rate UV logging control stream.
     Disk I/O is isolated in a worker thread so GNU Radio work() only enqueues
     small visibility records.
     """
@@ -95,7 +96,7 @@ class blk(gr.sync_block):
         gr.sync_block.__init__(
             self,
             name="FITS-IDI Visibility Recorder",
-            in_sig=[np.complex64, np.float32, np.float32, np.float32],
+            in_sig=[np.complex64, np.float32, np.float32, np.float32, np.float32],
             out_sig=[np.float32, np.float32, np.float32],
         )
 
@@ -296,9 +297,13 @@ class blk(gr.sync_block):
                     self._request_stop_locked(error=False)
 
     def work(self, input_items, output_items):
-        self._maintain_state()
-        nout = min(len(input_items[0]), len(output_items[0]))
+        nout = min(len(input_items[0]), len(input_items[4]), len(output_items[0]))
         for i in range(nout):
+            control_enabled = bool(float(input_items[4][i]) >= 0.5)
+            if control_enabled != self.uv_logging_enable:
+                self.set_uv_logging_enable(control_enabled)
+            else:
+                self._maintain_state()
             with self._lock:
                 state = self._state
                 writer_active = state == STATE_RECORDING

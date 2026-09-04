@@ -261,6 +261,7 @@ class Stage10FitsIdiTests(unittest.TestCase):
                 np.array([100.0], dtype=np.float32),
                 np.array([1.0], dtype=np.float32),
                 np.array([10.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
             ]
             outputs = [np.zeros(1, dtype=np.float32) for _ in range(3)]
             block.work(inputs, outputs)
@@ -295,6 +296,42 @@ class Stage10FitsIdiTests(unittest.TestCase):
             self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
             self.assertTrue(pathlib.Path(block._writer.final_file).exists())
 
+    def test_control_stream_starts_recording_from_work(self):
+        gnuradio = types.ModuleType("gnuradio")
+
+        class FakeSyncBlock:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        gnuradio.gr = types.SimpleNamespace(sync_block=FakeSyncBlock)
+        sys.modules["gnuradio"] = gnuradio
+        sys.modules["gnuradio.gr"] = gnuradio.gr
+        sys.path.insert(0, str(ROOT / "grc"))
+        path = ROOT / "grc" / "fx_interferometer_v1_stage10_fitsidi_recorder.py"
+        spec = importlib.util.spec_from_file_location("stage10_recorder_control_stream", path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as tmp:
+            block = module.blk(uv_logging_enable=False, output_dir=tmp)
+            inputs = [
+                np.array([2.0 + 3.0j], dtype=np.complex64),
+                np.array([97.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([10.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+            ]
+            outputs = [np.zeros(1, dtype=np.float32) for _ in range(3)]
+            block.work(inputs, outputs)
+            self.assertEqual(block._state, writer_mod.STATE_RECORDING)
+            self.assertEqual(outputs[0][0], writer_mod.STATE_RECORDING)
+            block.set_uv_logging_enable(False)
+            deadline = Time.now().unix + 5.0
+            while block._state == writer_mod.STATE_FINALIZING and Time.now().unix < deadline:
+                __import__("time").sleep(0.05)
+            self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
+            self.assertGreaterEqual(block._records_written, 1)
+
     def test_stage10_grc_derives_from_stage9_without_dsp_regression(self):
         stage9 = yaml.safe_load((ROOT / "grc" / "fx_interferometer_v1_stage9.grc").read_text())
         stage10 = yaml.safe_load((ROOT / "grc" / "fx_interferometer_v1_stage10.grc").read_text())
@@ -307,6 +344,9 @@ class Stage10FitsIdiTests(unittest.TestCase):
             self.assertEqual(block["states"], stage10_blocks[name]["states"])
         self.assertTrue(set(tuple(c) for c in stage9["connections"]).issubset(set(tuple(c) for c in stage10["connections"])))
         self.assertIn("fitsidi_visibility_recorder", stage10_blocks)
+        self.assertIn("stage10_uv_logging_control_source", stage10_blocks)
+        connections = {tuple(c) for c in stage10["connections"]}
+        self.assertIn(("stage10_uv_logging_control_source", "0", "fitsidi_visibility_recorder", "4"), connections)
 
     def test_grc_embedded_recorder_fallback_instantiates_after_import_failure(self):
         stage10 = yaml.safe_load((ROOT / "grc" / "fx_interferometer_v1_stage10.grc").read_text())
