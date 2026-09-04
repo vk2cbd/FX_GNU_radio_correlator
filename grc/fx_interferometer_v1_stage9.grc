@@ -4,7 +4,7 @@ options:
     catch_exceptions: 'True'
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
-    comment: 'Stage 10 FX interferometer flowgraph. RX0=Antenna 0 / 2.4 m, RX1=Antenna
+    comment: 'Stage 9 FX interferometer flowgraph. RX0=Antenna 0 / 2.4 m, RX1=Antenna
       1 / 1.7 m. Cross-spectrum convention: C01[k] = X0[k] * conj(X1[k]). High-side
       LNB sky axis uses x_start=lnb_lo-(if_cf-samp_rate/2), x_step=-samp_rate/fft_size.'
     copyright: ''
@@ -13,7 +13,7 @@ options:
     gen_linking: dynamic
     generate_options: qt_gui
     hier_block_src_path: '.:'
-    id: fx_interferometer_v1_stage10
+    id: fx_interferometer_v1_stage9
     max_nouts: '0'
     output_language: python
     placement: (0,0)
@@ -24,7 +24,7 @@ options:
     run_options: prompt
     sizing_mode: fixed
     thread_safe_setters: ''
-    title: FX Interferometer V1 Stage 10
+    title: FX Interferometer V1 Stage 9
     window_size: ''
   states:
     bus_sink: false
@@ -251,110 +251,6 @@ blocks:
     bus_source: false
     bus_structure: null
     coordinate: [2136, 1512.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: observation_name
-  id: variable_qtgui_entry
-  parameters:
-    comment: 'Stage 10 UVFITS observation name. Used only when Record UVFITS is enabled.'
-    entry_signal: editingFinished
-    gui_hint: ''
-    label: Observation Name
-    type: string
-    value: observation
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6080, 1320.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: uvfits_output_dir
-  id: variable_qtgui_entry
-  parameters:
-    comment: 'Stage 10 UVFITS output directory. Observation files are never overwritten.'
-    entry_signal: editingFinished
-    gui_hint: ''
-    label: UVFITS Output Directory
-    type: string
-    value: ~/FX_Correlator_Data
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6080, 1440.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: record_uvfits
-  id: variable_qtgui_chooser
-  parameters:
-    comment: 'Stage 10 UV logging control. Disabled by default. Enabled starts a new UVFITS observation; Disabled finalizes it.'
-    gui_hint: ''
-    label: UV Logging
-    label0: Disabled
-    label1: Enabled
-    label2: ''
-    label3: ''
-    label4: ''
-    labels: '[]'
-    num_opts: '2'
-    option0: 'False'
-    option1: 'True'
-    option2: '2'
-    option3: '3'
-    option4: '4'
-    options: '[False, True]'
-    orient: Qt.QHBoxLayout
-    type: bool
-    value: 'False'
-    widget: combo_box
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6080, 1560.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_polarization
-  id: variable
-  parameters:
-    comment: 'Stage 10 instrumental polarization label for pyuvdata. Assumption: xx.'
-    value: '"xx"'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6080, 1680.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_queue_max_records
-  id: variable
-  parameters:
-    comment: 'Maximum queued Stage 10 visibility records before entering ERROR.'
-    value: '256'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6080, 1784.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_software_commit
-  id: variable
-  parameters:
-    comment: 'Stage 10 UVFITS history commit label. Generated flowgraphs may update this manually.'
-    value: '"unknown"'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6080, 1888.0]
     enabled: true
     rotation: 0
     state: enabled
@@ -604,22 +500,22 @@ blocks:
 - name: source_mode
   id: variable_qtgui_chooser
   parameters:
-    comment: 'Stage 5 source selector: 0=Sun, 1=Moon, 2=Manual ICRS RA/Dec.'
+    comment: 'Stage 5 source selector: 0=Sun, 1=Manual ICRS RA/Dec.'
     gui_hint: ''
     label: Source
     label0: Sun
-    label1: Moon
-    label2: Manual RA/Dec
+    label1: Manual RA/Dec
+    label2: ''
     label3: ''
     label4: ''
     labels: '[]'
-    num_opts: '3'
+    num_opts: '2'
     option0: '0'
     option1: '1'
     option2: '2'
     option3: '3'
     option4: '4'
-    options: '[0, 1, 2]'
+    options: '[0, 1]'
     orient: Qt.QHBoxLayout
     type: int
     value: '0'
@@ -635,86 +531,11 @@ blocks:
 - name: astronomy_coordinate_engine
   id: epy_block
   parameters:
-    _source_code: |
-      import os
-      import sys
-
-
-      def _add_stage10_module_paths():
-          paths = []
-          try:
-              paths.append(os.path.dirname(os.path.abspath(__file__)))
-          except NameError:
-              pass
-          paths.append(os.getcwd())
-          paths.append(os.path.join(os.getcwd(), "grc"))
-          for path in paths:
-              if path and os.path.isdir(path) and path not in sys.path:
-                  sys.path.insert(0, path)
-
-
-      _add_stage10_module_paths()
-      try:
-          from fx_interferometer_v1_stage9_astronomy_coordinate_engine import blk
-      except Exception as _stage5_import_error:
-          _stage5_import_error_text = str(_stage5_import_error)
-          import numpy as np
-          from gnuradio import gr
-
-
-          class blk(gr.sync_block):
-              """Design-time fallback if GRC cannot import the Stage 5 astronomy module."""
-
-              def __init__(
-                  self,
-                  fft_size=4096,
-                  site_lat_deg=-32.724,
-                  site_lon_deg=152.130167,
-                  site_height_m=70.0,
-                  source_mode=0,
-                  manual_ra_hours=5.0,
-                  manual_dec_deg=-30.0,
-              ):
-                  self.fft_size = int(fft_size)
-                  self._error = _stage5_import_error_text
-                  print(
-                      f"Stage 5 astronomy engine import failed: {_stage5_import_error_text}. "
-                      "Check that grc/fx_interferometer_v1_stage9_astronomy_coordinate_engine.py is present.",
-                      flush=True,
-                  )
-                  gr.sync_block.__init__(
-                      self,
-                      name="Astronomy Coordinate Engine",
-                      in_sig=[(np.complex64, self.fft_size)],
-                      out_sig=[np.float32, np.float32, np.float32, np.float32, np.float32, np.float32, np.float32],
-                  )
-
-              def set_site_lat_deg(self, value):
-                  pass
-
-              def set_site_lon_deg(self, value):
-                  pass
-
-              def set_site_height_m(self, value):
-                  pass
-
-              def set_source_mode(self, value):
-                  pass
-
-              def set_manual_ra_hours(self, value):
-                  pass
-
-              def set_manual_dec_deg(self, value):
-                  pass
-
-              def work(self, input_items, output_items):
-                  nout = len(input_items[0])
-                  for out in output_items:
-                      out[:nout] = np.nan
-                  return nout
+    _source_code: "import time\n\nimport numpy as np\nfrom gnuradio import gr\n\nfrom astropy import units as u\nfrom astropy.coordinates import AltAz, EarthLocation, SkyCoord, TETE, get_sun\nfrom astropy.time import Time\nfrom astropy.utils import iers\n\niers.conf.auto_download = False\niers.conf.iers_degraded_accuracy = 'warn'\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 5 source/site/time astronomy-coordinate engine.\"\"\"\n\n    def __init__(\n        self,\n        fft_size=4096,\n        site_lat_deg=-32.724,\n        site_lon_deg=152.130167,\n        site_height_m=70.0,\n        source_mode=0,\n        manual_ra_hours=5.0,\n        manual_dec_deg=-30.0,\n    ):\n        self.fft_size = int(fft_size)\n        self.site_lat_deg = float(site_lat_deg)\n        self.site_lon_deg = float(site_lon_deg)\n        self.site_height_m = float(site_height_m)\n        self.source_mode = int(source_mode)\n        self.manual_ra_hours = float(manual_ra_hours)\n        self.manual_dec_deg = float(manual_dec_deg)\n        self._last_update = 0.0\n        self._cache = np.full(7, np.nan, dtype=np.float32)\n        gr.sync_block.__init__(\n            self,\n            name='Astronomy Coordinate Engine',\n            in_sig=[(np.complex64, self.fft_size)],\n            out_sig=[\n                np.float32,\n                np.float32,\n                np.float32,\n                np.float32,\n                np.float32,\n                np.float32,\n                np.float32,\n            ],\n        )\n\n    def _invalidate(self):\n        self._last_update = 0.0\n\n    def set_site_lat_deg(self, value):\n        self.site_lat_deg = float(value)\n        self._invalidate()\n\n    def set_site_lon_deg(self, value):\n        self.site_lon_deg = float(value)\n        self._invalidate()\n\n    def set_site_height_m(self, value):\n        self.site_height_m = float(value)\n        self._invalidate()\n\n    def set_source_mode(self, value):\n        self.source_mode = int(value)\n        self._invalidate()\n\n    def set_manual_ra_hours(self, value):\n        self.manual_ra_hours = float(value)\n        self._invalidate()\n\n    def set_manual_dec_deg(self, value):\n        self.manual_dec_deg = float(value)\n        self._invalidate()\n\n    def _compute(self):\n        site_lat_deg = float(self.site_lat_deg)\n        site_lon_deg = float(self.site_lon_deg)\n        site_height_m = float(self.site_height_m)\n        source_mode = int(self.source_mode)\n        manual_ra_hours = float(self.manual_ra_hours)\n        manual_dec_deg = float(self.manual_dec_deg)\n\n        location = EarthLocation(\n            lat=site_lat_deg * u.deg,\n            lon=site_lon_deg * u.deg,\n            height=site_height_m * u.m,\n        )\n        obstime = Time.now()\n        obstime.location = location\n\n        if source_mode == 0:\n            source_coord = get_sun(obstime)\n        else:\n            source_coord = SkyCoord(\n                ra=manual_ra_hours * u.hourangle,\n                dec=manual_dec_deg * u.deg,\n                frame='icrs',\n            )\n\n        apparent = source_coord.transform_to(TETE(obstime=obstime, location=location))\n        altaz = source_coord.transform_to(\n            AltAz(obstime=obstime, location=location, pressure=0 * u.hPa)\n        )\n\n        utc_dt = obstime.utc.datetime\n        utc_hour = (\n            utc_dt.hour\n            + utc_dt.minute / 60.0\n            + (utc_dt.second + utc_dt.microsecond * 1e-6) / 3600.0\n        )\n        lmst_hour = (\n            obstime.sidereal_time('apparent', longitude=site_lon_deg * u.deg).hour\n            % 24.0\n        )\n        apparent_ra_hour = apparent.ra.hour % 24.0\n        apparent_dec_deg = apparent.dec.deg\n        ha_hour = ((lmst_hour - apparent_ra_hour + 12.0) % 24.0) - 12.0\n\n        self._cache = np.array(\n            [\n                utc_hour,\n                lmst_hour,\n                ha_hour,\n                altaz.az.deg % 360.0,\n                altaz.alt.deg,\n                apparent_ra_hour,\n                apparent_dec_deg,\n            ],\n            dtype=np.float32,\n        )\n        self._last_update = time.monotonic()\n\n    def work(self, input_items, output_items):\n        nout = len(input_items[0])\n        if nout == 0:\n            return 0\n\n        if self._last_update == 0.0 or time.monotonic() - self._last_update >= 1.0:\n            try:\n                self._compute()\n            except Exception as exc:\n                print(f\"Stage 5 astronomy error: {exc}\", flush=True)\n                self._cache = np.full(7, np.nan, dtype=np.float32)\n                self._last_update = time.monotonic()\n\n        for idx, value in enumerate(self._cache):\n            output_items[idx][:nout] = value\n\n        return nout\n"
     affinity: ''
     alias: ''
-    comment: 'Stage 5 only: low-rate Astropy source/site/time coordinates after cross_accum. Does not correct C01.'
+    comment: 'Stage 5 only: low-rate Astropy source/site/time coordinates after cross_accum.
+      Does not correct C01.'
     fft_size: fft_size
     manual_dec_deg: manual_dec_deg
     manual_ra_hours: manual_ra_hours
@@ -725,7 +546,13 @@ blocks:
     site_lon_deg: site_lon_deg
     source_mode: source_mode
   states:
-    _io_cache: '(''Astronomy Coordinate Engine'', ''blk'', [(''fft_size'', ''4096''), (''site_lat_deg'', ''-32.724''), (''site_lon_deg'', ''152.130167''), (''site_height_m'', ''70.0''), (''source_mode'', ''0''), (''manual_ra_hours'', ''5.0''), (''manual_dec_deg'', ''-30.0'')], [(''0'', ''complex'', 4096)], [(''0'', ''float'', 1), (''1'', ''float'', 1), (''2'', ''float'', 1), (''3'', ''float'', 1), (''4'', ''float'', 1), (''5'', ''float'', 1), (''6'', ''float'', 1)], ''Stage 5 source/site/time astronomy-coordinate engine.'', [''fft_size'', ''manual_dec_deg'', ''manual_ra_hours'', ''site_height_m'', ''site_lat_deg'', ''site_lon_deg'', ''source_mode''])'
+    _io_cache: ('Astronomy Coordinate Engine', 'blk', [('fft_size', '4096'), ('site_lat_deg',
+      '-32.724'), ('site_lon_deg', '152.130167'), ('site_height_m', '0.0'), ('source_mode',
+      '0'), ('manual_ra_hours', '5.0'), ('manual_dec_deg', '-30.0')], [('0', 'complex',
+      4096)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1), ('3', 'float',
+      1), ('4', 'float', 1), ('5', 'float', 1), ('6', 'float', 1)], 'Stage 5 source/site/time
+      astronomy-coordinate engine.', ['fft_size', 'manual_dec_deg', 'manual_ra_hours',
+      'site_height_m', 'site_lat_deg', 'site_lon_deg', 'source_mode'])
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -3202,323 +3029,6 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
-- name: stage10_settings_persistence
-  id: epy_block
-  parameters:
-    _source_code: |
-      import os
-      import sys
-
-
-      def _add_stage10_module_paths():
-          paths = []
-          try:
-              paths.append(os.path.dirname(os.path.abspath(__file__)))
-          except NameError:
-              pass
-          paths.append(os.getcwd())
-          paths.append(os.path.join(os.getcwd(), "grc"))
-          for path in paths:
-              if path and os.path.isdir(path) and path not in sys.path:
-                  sys.path.insert(0, path)
-
-
-      _add_stage10_module_paths()
-      try:
-          from fx_interferometer_v1_stage10_settings_persistence import blk
-      except Exception as _stage10_settings_error:
-          _stage10_settings_error_text = str(_stage10_settings_error)
-          from gnuradio import gr
-
-
-          class blk(gr.sync_block):
-              """Design-time fallback if GRC cannot import the Stage 10 settings module."""
-
-              def __init__(
-                  self,
-                  site_lat_deg=-32.724,
-                  site_lon_deg=152.130167,
-                  site_height_m=70.0,
-                  source_mode=0,
-                  manual_ra_hours="5.0",
-                  manual_dec_deg="-30.0",
-                  baseline_e_m=-5.785,
-                  baseline_n_m=0.095,
-                  baseline_u_m=0.580,
-                  sky_cf=4.800e9,
-                  gain0=40,
-                  gain1=40,
-                  fft_size=4096,
-                  accum_time=0.1,
-                  instrument_delay_ns="0.0",
-                  delay_correction_enable=True,
-                  fringe_stop_enable=True,
-                  fringe_stop_sign=-1,
-                  visibility_edge_exclude_pct=20.0,
-                  integration_time_s="1.0",
-                  phase_rate_fit_window_s=60.0,
-                  coherence_target_pct=95.0,
-                  uvfits_output_dir="~/FX_Correlator_Data",
-                  observation_name="observation",
-              ):
-                  self._error = _stage10_settings_error_text
-                  print(f"Stage 10 settings persistence import failed: {_stage10_settings_error_text}", flush=True)
-                  gr.sync_block.__init__(self, name="Stage 10 Settings Persistence", in_sig=None, out_sig=None)
-    affinity: ''
-    alias: ''
-    accum_time: accum_time
-    baseline_e_m: baseline_e_m
-    baseline_n_m: baseline_n_m
-    baseline_u_m: baseline_u_m
-    coherence_target_pct: coherence_target_pct
-    comment: 'Stage 10 GUI usability: persist operator settings as variables change. Transient UV recording state is intentionally not persisted.'
-    delay_correction_enable: delay_correction_enable
-    fft_size: fft_size
-    fringe_stop_enable: fringe_stop_enable
-    fringe_stop_sign: fringe_stop_sign
-    gain0: gain0
-    gain1: gain1
-    instrument_delay_ns: instrument_delay_ns
-    integration_time_s: integration_time_s
-    manual_dec_deg: manual_dec_deg
-    manual_ra_hours: manual_ra_hours
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    observation_name: observation_name
-    phase_rate_fit_window_s: phase_rate_fit_window_s
-    site_height_m: site_height_m
-    site_lat_deg: site_lat_deg
-    site_lon_deg: site_lon_deg
-    sky_cf: sky_cf
-    source_mode: source_mode
-    uvfits_output_dir: uvfits_output_dir
-    visibility_edge_exclude_pct: visibility_edge_exclude_pct
-  states:
-    _io_cache: '(''Stage 10 Settings Persistence'', ''blk'', [(''site_lat_deg'', ''-32.724''), (''site_lon_deg'', ''152.130167''), (''site_height_m'', ''70.0''), (''source_mode'', ''0''), (''manual_ra_hours'', ''5.0''), (''manual_dec_deg'', ''-30.0''), (''baseline_e_m'', ''-5.785''), (''baseline_n_m'', ''0.095''), (''baseline_u_m'', ''0.580''), (''sky_cf'', ''4.800e9''), (''gain0'', ''40''), (''gain1'', ''40''), (''fft_size'', ''4096''), (''accum_time'', ''0.1''), (''instrument_delay_ns'', ''0.0''), (''delay_correction_enable'', ''True''), (''fringe_stop_enable'', ''True''), (''fringe_stop_sign'', ''-1''), (''visibility_edge_exclude_pct'', ''20.0''), (''integration_time_s'', ''1.0''), (''phase_rate_fit_window_s'', ''60.0''), (''coherence_target_pct'', ''95.0''), (''uvfits_output_dir'', ''~/FX_Correlator_Data''), (''observation_name'', ''observation'')], [], [], ''Persist Stage 10 operator settings as GRC variables change.'', [''accum_time'', ''baseline_e_m'', ''baseline_n_m'', ''baseline_u_m'', ''coherence_target_pct'', ''delay_correction_enable'', ''fft_size'', ''fringe_stop_enable'', ''fringe_stop_sign'', ''gain0'', ''gain1'', ''instrument_delay_ns'', ''integration_time_s'', ''manual_dec_deg'', ''manual_ra_hours'', ''observation_name'', ''phase_rate_fit_window_s'', ''site_height_m'', ''site_lat_deg'', ''site_lon_deg'', ''sky_cf'', ''source_mode'', ''uvfits_output_dir'', ''visibility_edge_exclude_pct''])'
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6384, 1320.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: uvfits_visibility_recorder
-  id: epy_block
-  parameters:
-    _source_code: |
-      import os
-      import sys
-
-
-      def _add_stage10_module_paths():
-          paths = []
-          try:
-              paths.append(os.path.dirname(os.path.abspath(__file__)))
-          except NameError:
-              pass
-          paths.append(os.getcwd())
-          paths.append(os.path.join(os.getcwd(), "grc"))
-          for path in paths:
-              if path and os.path.isdir(path) and path not in sys.path:
-                  sys.path.insert(0, path)
-
-
-      _add_stage10_module_paths()
-      try:
-          from fx_interferometer_v1_stage10_uvfits_recorder import blk
-      except Exception as _stage10_import_error:
-          _stage10_import_error_text = str(_stage10_import_error)
-          import numpy as np
-          from gnuradio import gr
-
-
-          class blk(gr.sync_block):
-              """Design-time fallback if GRC cannot import the Stage 10 recorder module."""
-
-              def __init__(
-                  self,
-                  record_uvfits=False,
-                  observation_name="observation",
-                  uvfits_output_dir="~/FX_Correlator_Data",
-                  source_mode=0,
-                  manual_ra_hours=5.0,
-                  manual_dec_deg=-30.0,
-                  site_lat_deg=-32.724,
-                  site_lon_deg=152.130167,
-                  site_height_m=70.0,
-                  baseline_e_m=-5.785,
-                  baseline_n_m=0.095,
-                  baseline_u_m=0.580,
-                  sky_cf_hz=4.800e9,
-                  lnb_lo_hz=5.950e9,
-                  samp_rate_hz=30.72e6,
-                  fft_size=4096,
-                  visibility_edge_exclude_pct=20.0,
-                  delay_correction_enabled=True,
-                  fringe_stop_enabled=True,
-                  fringe_stop_sign=-1,
-                  instrument_delay_ns=0.0,
-                  gain0_db=40.0,
-                  gain1_db=40.0,
-                  polarization="xx",
-                  software_commit="unknown",
-                  gnuradio_version="3.10.9.2",
-              queue_max_records=256,
-          ):
-                  self._error = _stage10_import_error_text
-                  print(
-                      f"Stage 10 UVFITS recorder import failed: {_stage10_import_error_text}. "
-                      "Check that grc/fx_interferometer_v1_stage10_uvfits_recorder.py "
-                      "and grc/fx_interferometer_v1_stage10_uvfits_writer.py are present.",
-                      flush=True,
-                  )
-                  gr.sync_block.__init__(
-                      self,
-                      name="UVFITS Visibility Recorder",
-                      in_sig=[np.complex64, np.float32, np.float32, np.float32],
-                      out_sig=[np.float32, np.float32],
-                  )
-
-              def set_record_uvfits(self, value):
-                  pass
-
-              def set_observation_name(self, value):
-                  pass
-
-              def set_uvfits_output_dir(self, value):
-                  pass
-
-              def set_source_mode(self, value):
-                  pass
-
-              def set_manual_ra_hours(self, value):
-                  pass
-
-              def set_manual_dec_deg(self, value):
-                  pass
-
-              def set_sky_cf_hz(self, value):
-                  pass
-
-              def set_baseline_e_m(self, value):
-                  pass
-
-              def set_baseline_n_m(self, value):
-                  pass
-
-              def set_baseline_u_m(self, value):
-                  pass
-
-              def work(self, input_items, output_items):
-                  nout = len(input_items[0])
-                  output_items[0][:nout] = np.float32(4.0)
-                  output_items[1][:nout] = np.float32(0.0)
-                  return nout
-    affinity: ''
-    alias: ''
-    baseline_e_m: baseline_e_m
-    baseline_n_m: baseline_n_m
-    baseline_u_m: baseline_u_m
-    comment: 'Stage 10 only: low-rate asynchronous UVFITS recorder. Taps the four aligned Stage-9 integrated V_stopped outputs and leaves all Stage 1-9 DSP unchanged.'
-    delay_correction_enabled: delay_correction_enable
-    fft_size: fft_size
-    fringe_stop_enabled: fringe_stop_enable
-    fringe_stop_sign: fringe_stop_sign
-    gain0_db: gain0
-    gain1_db: gain1
-    gnuradio_version: '"3.10.9.2"'
-    instrument_delay_ns: instrument_delay_ns
-    lnb_lo_hz: lnb_lo
-    manual_dec_deg: manual_dec_deg
-    manual_ra_hours: manual_ra_hours
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    observation_name: observation_name
-    polarization: stage10_polarization
-    queue_max_records: stage10_queue_max_records
-    record_uvfits: record_uvfits
-    samp_rate_hz: samp_rate
-    site_height_m: site_height_m
-    site_lat_deg: site_lat_deg
-    site_lon_deg: site_lon_deg
-    sky_cf_hz: sky_cf
-    software_commit: stage10_software_commit
-    source_mode: source_mode
-    uvfits_output_dir: uvfits_output_dir
-    visibility_edge_exclude_pct: visibility_edge_exclude_pct
-  states:
-    _io_cache: '(''UVFITS Visibility Recorder'', ''blk'', [(''record_uvfits'', ''False''), (''observation_name'', ''observation''), (''uvfits_output_dir'', ''~/FX_Correlator_Data''), (''source_mode'', ''0''), (''manual_ra_hours'', ''5.0''), (''manual_dec_deg'', ''-30.0''), (''site_lat_deg'', ''-32.724''), (''site_lon_deg'', ''152.130167''), (''site_height_m'', ''70.0''), (''baseline_e_m'', ''-5.785''), (''baseline_n_m'', ''0.095''), (''baseline_u_m'', ''0.580''), (''sky_cf_hz'', ''4.800e9''), (''lnb_lo_hz'', ''5.950e9''), (''samp_rate_hz'', ''30.72e6''), (''fft_size'', ''4096''), (''visibility_edge_exclude_pct'', ''20.0''), (''delay_correction_enabled'', ''True''), (''fringe_stop_enabled'', ''True''), (''fringe_stop_sign'', ''-1''), (''instrument_delay_ns'', ''0.0''), (''gain0_db'', ''40.0''), (''gain1_db'', ''40.0''), (''polarization'', ''xx''), (''software_commit'', ''unknown''), (''gnuradio_version'', ''3.10.9.2''), (''queue_max_records'', ''256'')], [(''0'', ''complex'', 1), (''1'', ''float'', 1), (''2'', ''float'', 1), (''3'', ''float'', 1)], [(''0'', ''float'', 1), (''1'', ''float'', 1)], ''Stage 10 asynchronous UVFITS visibility recorder.'', [''record_uvfits'', ''observation_name'', ''uvfits_output_dir'', ''source_mode'', ''manual_ra_hours'', ''manual_dec_deg'', ''site_lat_deg'', ''site_lon_deg'', ''site_height_m'', ''baseline_e_m'', ''baseline_n_m'', ''baseline_u_m'', ''sky_cf_hz'', ''lnb_lo_hz'', ''samp_rate_hz'', ''fft_size'', ''visibility_edge_exclude_pct'', ''delay_correction_enabled'', ''fringe_stop_enabled'', ''fringe_stop_sign'', ''instrument_delay_ns'', ''gain0_db'', ''gain1_db'', ''polarization'', ''software_commit'', ''gnuradio_version'', ''queue_max_records''])'
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6080, 720.0]
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_recording_status_sink
-  id: qtgui_number_sink
-  parameters:
-    affinity: ''
-    alias: ''
-    autoscale: 'False'
-    avg: '0'
-    color1: '("blue", "red")'
-    color10: '("black", "black")'
-    color2: '("blue", "red")'
-    color3: '("black", "black")'
-    color4: '("black", "black")'
-    color5: '("black", "black")'
-    color6: '("black", "black")'
-    color7: '("black", "black")'
-    color8: '("black", "black")'
-    color9: '("black", "black")'
-    comment: 'Stage 10 recording status. Recording State codes: 0=OFF, 1=RECORDING, 2=FINALIZING, 3=COMPLETE, 4=ERROR. Current output file path is printed in the terminal and stored in the journal.'
-    factor1: '1'
-    factor10: '1'
-    factor2: '1'
-    factor3: '1'
-    factor4: '1'
-    factor5: '1'
-    factor6: '1'
-    factor7: '1'
-    factor8: '1'
-    factor9: '1'
-    graph_type: qtgui.NUM_GRAPH_NONE
-    gui_hint: ''
-    label1: Recording State
-    label10: ''
-    label2: Records Captured
-    label3: ''
-    label4: ''
-    label5: ''
-    label6: ''
-    label7: ''
-    label8: ''
-    label9: ''
-    max: '1000000'
-    min: '0'
-    name: '"Stage 10 / UVFITS Recording"'
-    nconnections: '2'
-    type: float
-    unit1: code
-    unit10: ''
-    unit2: records
-    unit3: ''
-    unit4: ''
-    unit5: ''
-    unit6: ''
-    unit7: ''
-    unit8: ''
-    unit9: ''
-    update_time: '0.25'
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6400, 720.0]
-    enabled: true
-    rotation: 0
-    state: enabled
 - name: phase_slope_number_sink
   id: qtgui_number_sink
   parameters:
@@ -4258,13 +3768,9 @@ connections:
 - [cross_phase_rad, '0', cross_phase_deg, '0']
 - [coherent_visibility_integrator, '0', integrated_visibility_mag, '0']
 - [coherent_visibility_integrator, '0', integrated_visibility_phase_rad, '0']
-- [coherent_visibility_integrator, '0', uvfits_visibility_recorder, '0']
 - [coherent_visibility_integrator, '1', stage9_number_sink, '4']
-- [coherent_visibility_integrator, '1', uvfits_visibility_recorder, '1']
 - [coherent_visibility_integrator, '2', stage9_number_sink, '0']
-- [coherent_visibility_integrator, '2', uvfits_visibility_recorder, '2']
 - [coherent_visibility_integrator, '3', stage9_number_sink, '1']
-- [coherent_visibility_integrator, '3', uvfits_visibility_recorder, '3']
 - [fringe_stop_corrector, '0', coherent_visibility_integrator, '0']
 - [fringe_stop_corrector, '0', phase_stability_advisor, '0']
 - [fringe_stop_corrector, '0', stopped_complex_to_float, '0']
@@ -4285,8 +3791,6 @@ connections:
 - [integrated_visibility_mag, '0', stage9_number_sink, '2']
 - [integrated_visibility_phase_deg, '0', stage9_number_sink, '3']
 - [integrated_visibility_phase_rad, '0', integrated_visibility_phase_deg, '0']
-- [uvfits_visibility_recorder, '0', stage10_recording_status_sink, '0']
-- [uvfits_visibility_recorder, '1', stage10_recording_status_sink, '1']
 - [phase_stability_advisor, '0', stage9_phase_stability_number_sink, '1']
 - [phase_stability_advisor, '1', stage9_phase_stability_number_sink, '2']
 - [phase_stability_advisor, '2', stage9_phase_stability_number_sink, '3']

@@ -40,22 +40,19 @@ def phase_rad(value):
     return float(np.angle(value))
 
 
-def load_grc(path="grc/fx_interferometer_v1_stage10.grc"):
+def load_grc(path="grc/fx_interferometer_v1_stage9.grc"):
     return yaml.safe_load(pathlib.Path(path).read_text())
 
 
 def head_grc():
     try:
         data = subprocess.check_output(
-            ["git", "show", "HEAD:grc/fx_interferometer_v1_stage10.grc"],
+            ["git", "show", "HEAD:grc/fx_interferometer_v1_stage9.grc"],
             stderr=subprocess.DEVNULL,
         )
     except subprocess.CalledProcessError:
-        try:
-            data = subprocess.check_output(["git", "show", "HEAD:grc/fx_interferometer_v1_stage9.grc"])
-        except subprocess.CalledProcessError:
-            previous_name = "HEAD:grc/fx_interferometer_v1_" + "stage1" + "_3.grc"
-            data = subprocess.check_output(["git", "show", previous_name])
+        previous_name = "HEAD:grc/fx_interferometer_v1_" + "stage1" + "_3.grc"
+        data = subprocess.check_output(["git", "show", previous_name])
     return yaml.safe_load(data)
 
 
@@ -207,8 +204,6 @@ class Stage8FringeStoppingTests(unittest.TestCase):
         new_blocks = {block["name"]: block for block in new["blocks"]}
         changed = []
         for name, old_block in old_blocks.items():
-            if name == "stage10_settings_import":
-                continue
             if name == "integration_time_s" and old_block["id"] == "variable":
                 continue
             new_name = "integration_time_s" if name == "integration_time_index" else name

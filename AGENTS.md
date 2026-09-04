@@ -6,7 +6,7 @@ Read `FX_CORRELATOR_SPEC.md` before making architectural or DSP changes.
 If implementation details conflict with the specification, stop and report the conflict rather than silently changing the design.
 
 ## Current milestone
-The current task is Stage 10 only: UVFITS visibility recording.
+The current task is Stage 9 only: coherent visibility integration and phase-stability advisor.
 
 Stage 1-4 coherent FX engine and differential-delay estimator are validated on the real B210 system.
 
@@ -22,13 +22,9 @@ Stage 8 may coherently combine Stage-7 corrected frequency channels, preserve th
 
 Stage 8 primary acceptance passed on a Moon observation. The operational fringe-stop sign is now confirmed as Normal (-phi_geo).
 
-Stage 9 coherently integrates the native Stage-8 stopped visibility over operator-selected non-overlapping windows and displays advisory phase-stability/coherence diagnostics. Stage-9 coherent integration was experimentally validated through 30 s. The 60 s test was not completed; it did not fail.
+Stage 9 may coherently integrate the native Stage-8 stopped visibility over operator-selected non-overlapping windows and display advisory phase-stability/coherence diagnostics.
 
-Stage 9 has been experimentally validated sufficiently to permit Stage 10.
-
-Stage 10 may record the Stage-9 integrated stopped visibility to UVFITS with an optional diagnostics sidecar and crash-recovery journal.
-
-Do not implement Stage 11 calibration solving, rho, flux calibration, imaging, OOT migration or multi-B210 work until Stage 10 is experimentally validated.
+Do not implement Stage 10 logging, calibration solving, rho, flux calibration, imaging, OOT migration or multi-B210 work until Stage 9 is experimentally validated.
 
 ## Target environment
 - Ubuntu 24.04.4

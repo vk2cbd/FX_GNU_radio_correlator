@@ -6,7 +6,7 @@ import warnings
 import numpy as np
 import yaml
 
-from tests.test_stage5_coordinates import SOURCE_MANUAL, compute_coordinates
+from tests.test_stage5_coordinates import compute_coordinates
 
 
 C_M_S = 299792458.0
@@ -135,7 +135,7 @@ class Stage6GeometryTests(unittest.TestCase):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             sun = compute_coordinates(0)
-            manual = compute_coordinates(SOURCE_MANUAL, manual_ra_hours="5.25", manual_dec_deg="-30.5")
+            manual = compute_coordinates(1, manual_ra_hours="5.25", manual_dec_deg="-30.5")
             sun_again = compute_coordinates(0)
         for coords in (sun, manual, sun_again):
             geom = geometry_for(coords["ha_hour"], coords["apparent_dec_deg"])
@@ -143,12 +143,12 @@ class Stage6GeometryTests(unittest.TestCase):
                 self.assertTrue(math.isfinite(value))
 
     def test_graph_preserves_stage1_to_stage5_connections_and_stage4_estimator(self):
-        graph_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage10.grc"
+        graph_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage9.grc"
         graph = yaml.safe_load(graph_path.read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
-        self.assertIn("-5.785", str(blocks["baseline_e_m"]["parameters"]["value"]))
-        self.assertIn("0.095", str(blocks["baseline_n_m"]["parameters"]["value"]))
-        self.assertIn("0.580", str(blocks["baseline_u_m"]["parameters"]["value"]))
+        self.assertEqual(blocks["baseline_e_m"]["parameters"]["value"], "-5.785")
+        self.assertEqual(blocks["baseline_n_m"]["parameters"]["value"], "+0.095")
+        self.assertEqual(blocks["baseline_u_m"]["parameters"]["value"], "+0.580")
         connections = {tuple(connection) for connection in graph["connections"]}
         required = {
             ("cross_multiply_conjugate", "0", "cross_accum", "0"),

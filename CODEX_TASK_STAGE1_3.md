@@ -1,13 +1,11 @@
 # Codex Task — Build Stage 1-3 Coherent FX Engine
 
-Historical note: this file records the original Stage 1-3 build task. The current canonical GRC file has since advanced and is named `grc/fx_interferometer_v1_stage10.grc`.
-
 ## Goal
 Create and validate the first GNU Radio Companion flowgraph for the FX interferometer described in `FX_CORRELATOR_SPEC.md`.
 
 Target file:
 
-`grc/fx_interferometer_v1_stage10.grc`
+`grc/fx_interferometer_v1_stage9.grc`
 
 ## Environment
 - Ubuntu 24.04.4

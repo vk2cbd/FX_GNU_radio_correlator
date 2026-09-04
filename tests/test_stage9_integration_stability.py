@@ -53,15 +53,12 @@ advisor_module = load_block_module(
 def head_grc():
     try:
         data = subprocess.check_output(
-            ["git", "show", "HEAD:grc/fx_interferometer_v1_stage10.grc"],
+            ["git", "show", "HEAD:grc/fx_interferometer_v1_stage9.grc"],
             stderr=subprocess.DEVNULL,
         )
     except subprocess.CalledProcessError:
-        try:
-            data = subprocess.check_output(["git", "show", "HEAD:grc/fx_interferometer_v1_stage9.grc"])
-        except subprocess.CalledProcessError:
-            previous_name = "HEAD:grc/fx_interferometer_v1_" + "stage1" + "_3.grc"
-            data = subprocess.check_output(["git", "show", previous_name])
+        previous_name = "HEAD:grc/fx_interferometer_v1_" + "stage1" + "_3.grc"
+        data = subprocess.check_output(["git", "show", previous_name])
     return yaml.safe_load(data)
 
 
@@ -283,7 +280,7 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
         self.assertLess(outputs[1][-1], 0.001)
 
     def test_grc_stage9_controls_blocks_and_connections(self):
-        graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage10.grc").read_text())
+        graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
         for name in {
             "integration_time_s",
@@ -339,13 +336,11 @@ class Stage9IntegrationStabilityTests(unittest.TestCase):
 
     def test_existing_block_coordinates_are_unchanged(self):
         old = head_grc()
-        new = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage10.grc").read_text())
+        new = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
         old_blocks = {block["name"]: block for block in old["blocks"]}
         new_blocks = {block["name"]: block for block in new["blocks"]}
         changed = []
         for name, old_block in old_blocks.items():
-            if name == "stage10_settings_import":
-                continue
             if name == "integration_time_s" and old_block["id"] == "variable":
                 continue
             new_name = "integration_time_s" if name == "integration_time_index" else name

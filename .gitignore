@@ -6,7 +6,6 @@ venv/
 
 # GNU Radio generated Python / caches
 *.pyc
-grc/fx_interferometer_v1_stage10.py
 
 # Build products
 build/
@@ -23,10 +22,6 @@ observations/*.h5
 observations/*.hdf5
 calibration/*.h5
 calibration/*.hdf5
-*.uvfits
-*.partial.uvfits
-*.stage10.sqlite
-*_diagnostics.csv
 
 # Large captures should never be committed
 *.cfile
