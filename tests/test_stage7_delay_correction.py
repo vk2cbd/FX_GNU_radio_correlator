@@ -160,6 +160,8 @@ class Stage7DelayCorrectionTests(unittest.TestCase):
         state_keys = ("coordinate", "rotation", "enabled")
         changed = []
         for name, old_block in old_blocks.items():
+            if name == "stage10_settings_import":
+                continue
             if name == "integration_time_s" and old_block["id"] == "variable":
                 continue
             new_name = "integration_time_s" if name == "integration_time_index" else name

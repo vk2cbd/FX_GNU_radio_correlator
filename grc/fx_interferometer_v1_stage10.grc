@@ -36,20 +36,6 @@ options:
     state: enabled
 
 blocks:
-- name: stage10_settings_import
-  id: import
-  parameters:
-    alias: ''
-    comment: 'Stage 10 operator-settings loader. Missing/corrupt settings fall back to project defaults.'
-    imports: import fx_interferometer_v1_stage10_settings
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate: [6080, 2000.0]
-    enabled: true
-    rotation: 0
-    state: enabled
 - name: accum_frames
   id: variable
   parameters:
@@ -67,7 +53,7 @@ blocks:
   id: variable
   parameters:
     comment: First-stage accumulation time in seconds.
-    value: fx_interferometer_v1_stage10_settings.load_setting('accum_time', 0.1)
+    value: '0.1'
   states:
     bus_sink: false
     bus_source: false
@@ -93,7 +79,7 @@ blocks:
   id: variable
   parameters:
     comment: Default FFT length. Stage 1-3 default is 4096.
-    value: fx_interferometer_v1_stage10_settings.load_setting('fft_size', 4096)
+    value: '4096'
   states:
     bus_sink: false
     bus_source: false
@@ -136,7 +122,7 @@ blocks:
     options: '[True, False]'
     orient: Qt.QHBoxLayout
     type: bool
-    value: fx_interferometer_v1_stage10_settings.load_setting('delay_correction_enable', True)
+    value: 'True'
     widget: combo_box
   states:
     bus_sink: false
@@ -154,7 +140,7 @@ blocks:
     gui_hint: ''
     label: Instrument Delay (ns)
     type: string
-    value: fx_interferometer_v1_stage10_settings.load_setting('instrument_delay_ns', '0.0')
+    value: '0.0'
   states:
     bus_sink: false
     bus_source: false
@@ -167,7 +153,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 8 broadband visibility edge exclusion percentage from each end of corrected spectrum.'
-    value: fx_interferometer_v1_stage10_settings.load_setting('visibility_edge_exclude_pct', 20.0)
+    value: '20.0'
   states:
     bus_sink: false
     bus_source: false
@@ -210,7 +196,7 @@ blocks:
     options: '[True, False]'
     orient: Qt.QHBoxLayout
     type: bool
-    value: fx_interferometer_v1_stage10_settings.load_setting('fringe_stop_enable', True)
+    value: 'True'
     widget: combo_box
   states:
     bus_sink: false
@@ -241,7 +227,7 @@ blocks:
     options: '[-1, 1]'
     orient: Qt.QHBoxLayout
     type: int
-    value: fx_interferometer_v1_stage10_settings.load_setting('fringe_stop_sign', -1)
+    value: '-1'
     widget: combo_box
   states:
     bus_sink: false
@@ -259,7 +245,7 @@ blocks:
     gui_hint: ''
     label: Coherent Integration
     type: string
-    value: fx_interferometer_v1_stage10_settings.load_setting('integration_time_s', '1.0')
+    value: '1.0'
   states:
     bus_sink: false
     bus_source: false
@@ -276,7 +262,7 @@ blocks:
     gui_hint: ''
     label: Observation Name
     type: string
-    value: fx_interferometer_v1_stage10_settings.load_setting('observation_name', 'observation')
+    value: observation
   states:
     bus_sink: false
     bus_source: false
@@ -293,7 +279,7 @@ blocks:
     gui_hint: ''
     label: UVFITS Output Directory
     type: string
-    value: fx_interferometer_v1_stage10_settings.load_setting('uvfits_output_dir', '~/FX_Correlator_Data')
+    value: ~/FX_Correlator_Data
   states:
     bus_sink: false
     bus_source: false
@@ -369,7 +355,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 9 phase-stability advisor native phase-fit history window, seconds.'
-    value: fx_interferometer_v1_stage10_settings.load_setting('phase_rate_fit_window_s', 60.0)
+    value: '60.0'
   states:
     bus_sink: false
     bus_source: false
@@ -382,7 +368,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 9 rate-based coherence target percentage for recommended maximum integration.'
-    value: fx_interferometer_v1_stage10_settings.load_setting('coherence_target_pct', 95.0)
+    value: '95.0'
   states:
     bus_sink: false
     bus_source: false
@@ -395,7 +381,7 @@ blocks:
   id: variable
   parameters:
     comment: RX0 / antenna 0 / 2.4 m commissioning gain, dB.
-    value: fx_interferometer_v1_stage10_settings.load_setting('gain0', 40)
+    value: '40'
   states:
     bus_sink: false
     bus_source: false
@@ -408,7 +394,7 @@ blocks:
   id: variable
   parameters:
     comment: RX1 / antenna 1 / 1.7 m commissioning gain, dB.
-    value: fx_interferometer_v1_stage10_settings.load_setting('gain1', 40)
+    value: '40'
   states:
     bus_sink: false
     bus_source: false
@@ -451,7 +437,7 @@ blocks:
     gui_hint: ''
     label: Manual Dec (deg)
     type: string
-    value: fx_interferometer_v1_stage10_settings.load_setting('manual_dec_deg', '-30.0')
+    value: '-30.0'
   states:
     bus_sink: false
     bus_source: false
@@ -468,7 +454,7 @@ blocks:
     gui_hint: ''
     label: Manual RA (h)
     type: string
-    value: fx_interferometer_v1_stage10_settings.load_setting('manual_ra_hours', '5.0')
+    value: '5.0'
   states:
     bus_sink: false
     bus_source: false
@@ -494,7 +480,7 @@ blocks:
   id: variable
   parameters:
     comment: Stage 5 observing site height above ellipsoid/metres, initial value.
-    value: fx_interferometer_v1_stage10_settings.load_setting('site_height_m', 70.0)
+    value: '70'
   states:
     bus_sink: false
     bus_source: false
@@ -507,7 +493,7 @@ blocks:
   id: variable
   parameters:
     comment: Stage 5 observing site latitude, degrees north positive.
-    value: fx_interferometer_v1_stage10_settings.load_setting('site_lat_deg', -32.724)
+    value: '-32.724'
   states:
     bus_sink: false
     bus_source: false
@@ -520,7 +506,7 @@ blocks:
   id: variable
   parameters:
     comment: Stage 5 observing site longitude, degrees east positive.
-    value: fx_interferometer_v1_stage10_settings.load_setting('site_lon_deg', 152.130167)
+    value: '+152.130167'
   states:
     bus_sink: false
     bus_source: false
@@ -533,7 +519,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 6 B01 = r1-r0 east component, metres.'
-    value: fx_interferometer_v1_stage10_settings.load_setting('baseline_e_m', -5.785)
+    value: '-5.785'
   states:
     bus_sink: false
     bus_source: false
@@ -546,7 +532,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 6 B01 = r1-r0 north component, metres. Current working N is astronomically refined.'
-    value: fx_interferometer_v1_stage10_settings.load_setting('baseline_n_m', 0.095)
+    value: '+0.095'
   states:
     bus_sink: false
     bus_source: false
@@ -559,7 +545,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 6 B01 = r1-r0 up component, metres.'
-    value: fx_interferometer_v1_stage10_settings.load_setting('baseline_u_m', 0.580)
+    value: '+0.580'
   states:
     bus_sink: false
     bus_source: false
@@ -599,7 +585,7 @@ blocks:
   id: variable
   parameters:
     comment: Nominal astronomical sky centre frequency, Hz.
-    value: fx_interferometer_v1_stage10_settings.load_setting('sky_cf', 4.800e9)
+    value: 4.800e9
   states:
     bus_sink: false
     bus_source: false
@@ -629,7 +615,7 @@ blocks:
     options: '[0, 1, 2]'
     orient: Qt.QHBoxLayout
     type: int
-    value: fx_interferometer_v1_stage10_settings.load_setting('source_mode', 0)
+    value: '0'
     widget: combo_box
   states:
     bus_sink: false
@@ -3241,7 +3227,33 @@ blocks:
           class blk(gr.sync_block):
               """Design-time fallback if GRC cannot import the Stage 10 settings module."""
 
-              def __init__(self, **kwargs):
+              def __init__(
+                  self,
+                  site_lat_deg=-32.724,
+                  site_lon_deg=152.130167,
+                  site_height_m=70.0,
+                  source_mode=0,
+                  manual_ra_hours="5.0",
+                  manual_dec_deg="-30.0",
+                  baseline_e_m=-5.785,
+                  baseline_n_m=0.095,
+                  baseline_u_m=0.580,
+                  sky_cf=4.800e9,
+                  gain0=40,
+                  gain1=40,
+                  fft_size=4096,
+                  accum_time=0.1,
+                  instrument_delay_ns="0.0",
+                  delay_correction_enable=True,
+                  fringe_stop_enable=True,
+                  fringe_stop_sign=-1,
+                  visibility_edge_exclude_pct=20.0,
+                  integration_time_s="1.0",
+                  phase_rate_fit_window_s=60.0,
+                  coherence_target_pct=95.0,
+                  uvfits_output_dir="~/FX_Correlator_Data",
+                  observation_name="observation",
+              ):
                   self._error = _stage10_settings_error_text
                   print(f"Stage 10 settings persistence import failed: {_stage10_settings_error_text}", flush=True)
                   gr.sync_block.__init__(self, name="Stage 10 Settings Persistence", in_sig=None, out_sig=None)

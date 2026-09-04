@@ -366,7 +366,6 @@ class Stage10UVFITSTests(unittest.TestCase):
             "observation_name",
             "uvfits_output_dir",
             "record_uvfits",
-            "stage10_settings_import",
             "stage10_settings_persistence",
             "stage10_polarization",
             "stage10_queue_max_records",
@@ -376,7 +375,9 @@ class Stage10UVFITSTests(unittest.TestCase):
             self.assertIn(name, blocks)
         self.assertEqual(blocks["record_uvfits"]["id"], "variable_qtgui_toggle_button_msg")
         self.assertEqual(blocks["record_uvfits"]["parameters"]["value"], "False")
-        self.assertNotIn("fx_settings_load", blocks["record_uvfits"]["parameters"]["value"])
+        for block in blocks.values():
+            value = str(block.get("parameters", {}).get("value", ""))
+            self.assertNotIn("load_setting", value)
         self.assertEqual(blocks["source_mode"]["parameters"]["options"], "[0, 1, 2]")
         self.assertEqual(blocks["source_mode"]["parameters"]["label0"], "Sun")
         self.assertEqual(blocks["source_mode"]["parameters"]["label1"], "Moon")
@@ -458,6 +459,8 @@ class Stage10UVFITSTests(unittest.TestCase):
         new_blocks = {block["name"]: block for block in new["blocks"]}
         changed = []
         for name, old_block in old_blocks.items():
+            if name == "stage10_settings_import":
+                continue
             self.assertIn(name, new_blocks)
             for key in ("coordinate", "rotation", "bus_sink", "bus_source", "bus_structure"):
                 old_state = old_block.get("states", {}).get(key)

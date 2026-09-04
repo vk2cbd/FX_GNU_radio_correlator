@@ -165,10 +165,8 @@ class Stage8FringeStoppingTests(unittest.TestCase):
         }:
             self.assertIn(name, blocks)
 
-        self.assertIn("visibility_edge_exclude_pct", blocks["visibility_edge_exclude_pct"]["parameters"]["value"])
-        self.assertIn("20.0", blocks["visibility_edge_exclude_pct"]["parameters"]["value"])
-        self.assertIn("fringe_stop_sign", blocks["fringe_stop_sign"]["parameters"]["value"])
-        self.assertIn("-1", blocks["fringe_stop_sign"]["parameters"]["value"])
+        self.assertEqual(blocks["visibility_edge_exclude_pct"]["parameters"]["value"], "20.0")
+        self.assertEqual(blocks["fringe_stop_sign"]["parameters"]["value"], "-1")
         self.assertEqual(blocks["visibility_rate"]["parameters"]["value"], "fft_rate/accum_frames")
 
         combiner = blocks["broadband_visibility_combiner"]
@@ -209,6 +207,8 @@ class Stage8FringeStoppingTests(unittest.TestCase):
         new_blocks = {block["name"]: block for block in new["blocks"]}
         changed = []
         for name, old_block in old_blocks.items():
+            if name == "stage10_settings_import":
+                continue
             if name == "integration_time_s" and old_block["id"] == "variable":
                 continue
             new_name = "integration_time_s" if name == "integration_time_index" else name
