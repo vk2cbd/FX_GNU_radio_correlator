@@ -107,6 +107,24 @@ class Stage10FitsIdiTests(unittest.TestCase):
                 self.assertAlmostEqual(float(flux[1]), 4.0)
                 self.assertAlmostEqual(float(flux[2]), 1.0)
 
+    def test_manual_source_metadata_and_filename_are_not_sun(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = base_config(tmp)
+            cfg["source_mode"] = 1
+            cfg["manual_ra_hours"] = 18.3
+            cfg["manual_dec_deg"] = -16.2
+            writer = writer_mod.FitsIdiWriter(cfg)
+            writer.start()
+            add_records(writer, 1)
+            final_path = writer.stop()
+            self.assertIn("_Manual_B01.fitsidi", pathlib.Path(final_path).name)
+            self.assertNotIn("_Sun_B01.fitsidi", pathlib.Path(final_path).name)
+            with fits.open(final_path, memmap=False) as hdul:
+                source_row = hdul["SOURCE"].data[0]
+                self.assertEqual(source_row["SOURCE"].strip(), "Manual")
+                self.assertAlmostEqual(float(source_row["RAEPO"]), 18.3 * 15.0, places=8)
+                self.assertAlmostEqual(float(source_row["DECEPO"]), -16.2, places=8)
+
     def test_uvw_sign_and_units(self):
         with tempfile.TemporaryDirectory() as tmp:
             writer = writer_mod.FitsIdiWriter(base_config(tmp))
@@ -345,6 +363,10 @@ class Stage10FitsIdiTests(unittest.TestCase):
         self.assertTrue(set(tuple(c) for c in stage9["connections"]).issubset(set(tuple(c) for c in stage10["connections"])))
         self.assertIn("fitsidi_visibility_recorder", stage10_blocks)
         self.assertIn("stage10_uv_logging_control_source", stage10_blocks)
+        self.assertEqual(stage10_blocks["uv_logging_enable"]["parameters"]["type"], "int")
+        self.assertEqual(stage10_blocks["uv_logging_enable"]["parameters"]["value"], "0")
+        self.assertEqual(stage10_blocks["uv_logging_enable"]["parameters"]["options"], "[0, 1]")
+        self.assertEqual(stage10_blocks["stage10_uv_logging_control_source"]["parameters"]["offset"], "float(uv_logging_enable)")
         connections = {tuple(c) for c in stage10["connections"]}
         self.assertIn(("stage10_uv_logging_control_source", "0", "fitsidi_visibility_recorder", "4"), connections)
 

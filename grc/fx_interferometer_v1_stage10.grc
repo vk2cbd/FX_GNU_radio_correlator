@@ -3469,15 +3469,15 @@ blocks:
     label4: ''
     labels: '[]'
     num_opts: '2'
-    option0: 'False'
-    option1: 'True'
+    option0: '0'
+    option1: '1'
     option2: '2'
     option3: '3'
     option4: '4'
-    options: '[False, True]'
+    options: '[0, 1]'
     orient: Qt.QHBoxLayout
-    type: bool
-    value: 'False'
+    type: int
+    value: '0'
     widget: combo_box
   states:
     bus_sink: false
@@ -3499,7 +3499,7 @@ blocks:
     freq: '0'
     maxoutbuf: '0'
     minoutbuf: '0'
-    offset: 1.0 if uv_logging_enable else 0.0
+    offset: float(uv_logging_enable)
     phase: '0'
     samp_rate: visibility_rate
     type: float
@@ -3584,7 +3584,7 @@ blocks:
     uv_logging_enable: uv_logging_enable
     visibility_edge_exclude_pct: visibility_edge_exclude_pct
   states:
-    _io_cache: ('FITS-IDI Visibility Recorder', 'blk', [('uv_logging_enable', 'False'), ('observation_name', 'obs1'), ('output_dir',
+    _io_cache: ('FITS-IDI Visibility Recorder', 'blk', [('uv_logging_enable', '0'), ('observation_name', 'obs1'), ('output_dir',
       '~/FX_Correlator_Data'), ('source_mode', '0'), ('manual_ra_hours', '5.0'), ('manual_dec_deg', '-30.0'), ('site_lat_deg',
       '-32.724'), ('site_lon_deg', '152.130167'), ('site_height_m', '70.0'), ('baseline_e_m', '-5.785'), ('baseline_n_m',
       '0.095'), ('baseline_u_m', '0.580'), ('sky_cf_hz', '4800000000.0'), ('samp_rate', '30720000.0'), ('fft_size', '4096'),
