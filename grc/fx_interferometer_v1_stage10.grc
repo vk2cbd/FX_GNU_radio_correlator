@@ -3137,6 +3137,24 @@ blocks:
   id: epy_block
   parameters:
     _source_code: |
+      import os
+      import sys
+
+
+      def _add_stage10_module_paths():
+          paths = []
+          try:
+              paths.append(os.path.dirname(os.path.abspath(__file__)))
+          except NameError:
+              pass
+          paths.append(os.getcwd())
+          paths.append(os.path.join(os.getcwd(), "grc"))
+          for path in paths:
+              if path and os.path.isdir(path) and path not in sys.path:
+                  sys.path.insert(0, path)
+
+
+      _add_stage10_module_paths()
       from fx_interferometer_v1_stage10_uvfits_recorder import blk
     affinity: ''
     alias: ''
