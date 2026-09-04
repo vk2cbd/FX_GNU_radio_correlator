@@ -290,7 +290,7 @@ class Stage10FitsIdiTests(unittest.TestCase):
             block.work(inputs, outputs)
             self.assertEqual(block._state, writer_mod.STATE_ERROR)
 
-    def test_uv_logging_setter_does_not_start_writer_without_control_stream(self):
+    def test_uv_logging_setter_controls_writer_after_off_state(self):
         gnuradio = types.ModuleType("gnuradio")
 
         class FakeSyncBlock:
@@ -310,10 +310,46 @@ class Stage10FitsIdiTests(unittest.TestCase):
             block = module.blk(uv_logging_enable="False", output_dir=tmp)
             self.assertEqual(block._state, writer_mod.STATE_OFF)
             block.set_uv_logging_enable("True")
+            self.assertEqual(block._state, writer_mod.STATE_RECORDING)
+            self.assertTrue(pathlib.Path(block._writer.partial_file).exists())
+            block.set_uv_logging_enable("False")
+            deadline = Time.now().unix + 5.0
+            while block._state == writer_mod.STATE_FINALIZING and Time.now().unix < deadline:
+                __import__("time").sleep(0.05)
+            self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
+            self.assertTrue(pathlib.Path(block._writer.final_file).exists())
+
+    def test_initial_enabled_constructor_does_not_start_writer(self):
+        gnuradio = types.ModuleType("gnuradio")
+
+        class FakeSyncBlock:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        gnuradio.gr = types.SimpleNamespace(sync_block=FakeSyncBlock)
+        sys.modules["gnuradio"] = gnuradio
+        sys.modules["gnuradio.gr"] = gnuradio.gr
+        sys.path.insert(0, str(ROOT / "grc"))
+        path = ROOT / "grc" / "fx_interferometer_v1_stage10_fitsidi_recorder.py"
+        spec = importlib.util.spec_from_file_location("stage10_recorder_initial_setter", path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as tmp:
+            block = module.blk(uv_logging_enable=True, output_dir=tmp)
             self.assertEqual(block._state, writer_mod.STATE_OFF)
             self.assertIsNone(block._writer)
-            block.set_uv_logging_enable("False")
+            block.set_uv_logging_enable(True)
             self.assertEqual(block._state, writer_mod.STATE_OFF)
+            block.set_uv_logging_enable(False)
+            self.assertEqual(block._state, writer_mod.STATE_OFF)
+            block.set_uv_logging_enable(True)
+            self.assertEqual(block._state, writer_mod.STATE_RECORDING)
+            block.set_uv_logging_enable(False)
+            deadline = Time.now().unix + 5.0
+            while block._state == writer_mod.STATE_FINALIZING and Time.now().unix < deadline:
+                __import__("time").sleep(0.05)
+            self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
 
     def test_control_stream_rising_and_falling_edges_control_recording(self):
         gnuradio = types.ModuleType("gnuradio")

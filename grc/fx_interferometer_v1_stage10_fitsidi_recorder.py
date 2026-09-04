@@ -94,8 +94,9 @@ class blk(gr.sync_block):
         self._chunks_written = 0
         self._last_error = ""
         self._last_file_code = 0.0
-        self._control_enabled = False
+        self._control_enabled = self.uv_logging_enable
         self._control_initialized = False
+        self._control_seen_off = not self.uv_logging_enable
         gr.sync_block.__init__(
             self,
             name="FITS-IDI Visibility Recorder",
@@ -114,7 +115,7 @@ class blk(gr.sync_block):
 
     def set_uv_logging_enable(self, value):
         with self._lock:
-            self.uv_logging_enable = _as_bool(value)
+            self._apply_logging_control_locked(_as_bool(value))
 
     def set_observation_name(self, value):
         with self._lock:
@@ -289,6 +290,24 @@ class blk(gr.sync_block):
         self.manual_ra_hours = float(manual_ra_hours)
         self.manual_dec_deg = float(manual_dec_deg)
 
+    def _apply_logging_control_locked(self, control_enabled):
+        previous_control_enabled = self._control_enabled
+        self._control_enabled = control_enabled
+        self.uv_logging_enable = control_enabled
+        if not control_enabled:
+            self._control_seen_off = True
+            if previous_control_enabled and self._state == STATE_RECORDING:
+                self._request_stop_locked(error=False)
+            return
+        if self._control_seen_off and not previous_control_enabled:
+            if self._state in (STATE_OFF, STATE_COMPLETE, STATE_ERROR):
+                try:
+                    self._start_locked()
+                except Exception as exc:
+                    self._state = STATE_ERROR
+                    self._last_error = str(exc)
+                    print(f"Stage 10 FITS-IDI recorder start rejected: {exc}", flush=True)
+
     def work(self, input_items, output_items):
         nout = min(*(len(items) for items in input_items), len(output_items[0]))
         for i in range(nout):
@@ -299,24 +318,13 @@ class blk(gr.sync_block):
                     self._control_enabled = control_enabled
                     self.uv_logging_enable = control_enabled
                     self._control_initialized = True
+                    if not control_enabled:
+                        self._control_seen_off = True
                     output_items[0][i] = np.float32(self._state)
                     output_items[1][i] = np.float32(self._records_written)
                     output_items[2][i] = np.float32(self._last_file_code)
                     continue
-                previous_control_enabled = self._control_enabled
-                self._control_enabled = control_enabled
-                self.uv_logging_enable = control_enabled
-                if control_enabled and not previous_control_enabled:
-                    if self._state in (STATE_OFF, STATE_COMPLETE, STATE_ERROR):
-                        try:
-                            self._start_locked()
-                        except Exception as exc:
-                            self._state = STATE_ERROR
-                            self._last_error = str(exc)
-                            print(f"Stage 10 FITS-IDI recorder start rejected: {exc}", flush=True)
-                elif previous_control_enabled and not control_enabled:
-                    if self._state == STATE_RECORDING:
-                        self._request_stop_locked(error=False)
+                self._apply_logging_control_locked(control_enabled)
             with self._lock:
                 state = self._state
                 writer_active = state == STATE_RECORDING
