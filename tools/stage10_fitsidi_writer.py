@@ -81,7 +81,12 @@ def sanitize_token(value, fallback):
 
 
 def source_name(config):
-    return "Sun" if int(config["source_mode"]) == 0 else "Manual"
+    mode = int(config["source_mode"])
+    if mode == 0:
+        return "Sun"
+    if mode == 1:
+        return "Manual"
+    return "INVALID"
 
 
 def effective_bandwidth_hz(samp_rate, fft_size, edge_pct):
@@ -300,6 +305,8 @@ class FitsIdiWriter:
             raise ValueError("FITS-IDI recording requires Stage-7 delay correction enabled")
         if not bool(self.config["fringe_stop_enable"]) or int(self.config["fringe_stop_sign"]) != -1:
             raise ValueError("FITS-IDI recording requires Stage-8 Normal (-phi_geo) fringe stopping")
+        if source_name(self.config) == "INVALID":
+            raise ValueError("FITS-IDI recording requires a valid source mode")
         if int(self.config["stokes_code"]) == 1:
             raise ValueError("Stage 10 must not label the measured product as Stokes I")
 
@@ -640,17 +647,13 @@ class FitsIdiWriter:
                 hdu.verify("exception")
 
     def _patch_primary_signature(self, path):
-        raw = pathlib.Path(path).read_bytes()
-        raw = raw.replace(
-            b"NAXIS   =                    1",
-            b"NAXIS   =                    0",
-            1,
-        )
-        raw = raw.replace(
-            b"NAXIS1  =                    0                                                  ",
-            b"                                                                                ",
-            1,
-        )
+        raw = bytearray(pathlib.Path(path).read_bytes())
+        for offset in range(0, min(len(raw), 2880), 80):
+            key = bytes(raw[offset : offset + 8]).decode("ascii", errors="ignore").strip()
+            if key == "NAXIS":
+                raw[offset : offset + 80] = b"NAXIS   =                    0                                                  "
+            elif key == "NAXIS1":
+                raw[offset : offset + 80] = b"                                                                                "
         pathlib.Path(path).write_bytes(raw)
 
     def _unique_path(self, path):

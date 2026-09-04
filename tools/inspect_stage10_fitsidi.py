@@ -5,6 +5,8 @@ import os
 import numpy as np
 from astropy.io import fits
 
+from stage10_fitsidi_writer import validate_fitsidi_file
+
 
 C_M_S = 299792458.0
 
@@ -59,6 +61,7 @@ def finalize(path):
     if not path.endswith(".partial.fitsidi"):
         raise ValueError("--finalize expects a *.partial.fitsidi file")
     inspect(path)
+    validate_fitsidi_file(path)
     final_path = path.replace(".partial.fitsidi", ".fitsidi")
     if os.path.exists(final_path):
         raise FileExistsError(final_path)

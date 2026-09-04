@@ -4,8 +4,9 @@ options:
     catch_exceptions: 'True'
     category: '[GRC Hier Blocks]'
     cmake_opt: ''
-    comment: 'Stage 10 FX interferometer flowgraph. RX0=Antenna 0 / 2.4 m, RX1=Antenna 1 / 1.7 m. Cross-spectrum convention:
-      C01[k] = X0[k] * conj(X1[k]). High-side LNB sky axis uses x_start=lnb_lo-(if_cf-samp_rate/2), x_step=-samp_rate/fft_size.'
+    comment: Stage 10 FX interferometer flowgraph rebuilt from Stage 9. GNU Radio
+      publishes completed Stage-9 integrated visibilities over localhost JSON only;
+      FITS-IDI recording is owned by tools/stage10_fitsidi_logger.py.
     copyright: ''
     description: Minimal two-channel B210 FX correlator commissioning flowgraph.
     gen_cmake: 'Off'
@@ -114,7 +115,8 @@ blocks:
 - name: delay_correction_enable
   id: variable_qtgui_chooser
   parameters:
-    comment: 'Stage 7 runtime bypass: True applies frequency-domain delay-slope correction, False passes raw C01 through.'
+    comment: 'Stage 7 runtime bypass: True applies frequency-domain delay-slope correction,
+      False passes raw C01 through.'
     gui_hint: ''
     label: Delay Correction
     label0: Enabled
@@ -147,7 +149,8 @@ blocks:
 - name: instrument_delay_ns
   id: variable_qtgui_entry
   parameters:
-    comment: Stage 7 static instrumental delay, ns. Positive means RX1 electrically delayed relative to RX0.
+    comment: Stage 7 static instrumental delay, ns. Positive means RX1 electrically
+      delayed relative to RX0.
     entry_signal: editingFinished
     gui_hint: ''
     label: Instrument Delay (ns)
@@ -166,7 +169,8 @@ blocks:
 - name: visibility_edge_exclude_pct
   id: variable
   parameters:
-    comment: Stage 8 broadband visibility edge exclusion percentage from each end of corrected spectrum.
+    comment: Stage 8 broadband visibility edge exclusion percentage from each end
+      of corrected spectrum.
     value: '20.0'
   states:
     bus_sink: false
@@ -196,7 +200,8 @@ blocks:
 - name: fringe_stop_enable
   id: variable_qtgui_chooser
   parameters:
-    comment: 'Stage 8 runtime bypass: True applies centre-frequency geometric fringe stopping, False passes V_unstopped through.'
+    comment: 'Stage 8 runtime bypass: True applies centre-frequency geometric fringe
+      stopping, False passes V_unstopped through.'
     gui_hint: ''
     label: Fringe Stop
     label0: Enabled
@@ -229,7 +234,8 @@ blocks:
 - name: fringe_stop_sign
   id: variable_qtgui_chooser
   parameters:
-    comment: Stage 8 commissioning sign control. Default Normal removes +phi_geo using exp(-j phi_geo).
+    comment: Stage 8 commissioning sign control. Default Normal removes +phi_geo using
+      exp(-j phi_geo).
     gui_hint: ''
     label: Fringe Stop Sign
     label0: Normal (-phi_geo)
@@ -262,7 +268,8 @@ blocks:
 - name: integration_time_s
   id: variable_qtgui_entry
   parameters:
-    comment: Stage 9 requested coherent integration time, seconds. Effective time is quantised to native visibility samples.
+    comment: Stage 9 requested coherent integration time, seconds. Effective time
+      is quantised to native visibility samples.
     entry_signal: editingFinished
     gui_hint: ''
     label: Coherent Integration
@@ -296,7 +303,8 @@ blocks:
 - name: coherence_target_pct
   id: variable
   parameters:
-    comment: Stage 9 rate-based coherence target percentage for recommended maximum integration.
+    comment: Stage 9 rate-based coherence target percentage for recommended maximum
+      integration.
     value: '95.0'
   states:
     bus_sink: false
@@ -484,7 +492,8 @@ blocks:
 - name: baseline_n_m
   id: variable
   parameters:
-    comment: Stage 6 B01 = r1-r0 north component, metres. Current working N is astronomically refined.
+    comment: Stage 6 B01 = r1-r0 north component, metres. Current working N is astronomically
+      refined.
     value: '+0.095'
   states:
     bus_sink: false
@@ -514,7 +523,8 @@ blocks:
 - name: sky_axis_start
   id: variable
   parameters:
-    comment: Left edge of shifted FFT display in sky Hz. High-side conversion reverses IF frequency.
+    comment: Left edge of shifted FFT display in sky Hz. High-side conversion reverses
+      IF frequency.
     value: lnb_lo-(if_cf-samp_rate/2)
   states:
     bus_sink: false
@@ -592,50 +602,72 @@ blocks:
 - name: astronomy_coordinate_engine
   id: epy_block
   parameters:
-    _source_code: "import time\n\nimport numpy as np\nfrom gnuradio import gr\n\nfrom astropy import units as u\nfrom astropy.coordinates\
-      \ import AltAz, EarthLocation, SkyCoord, TETE, get_sun\nfrom astropy.time import Time\nfrom astropy.utils import iers\n\
-      \niers.conf.auto_download = False\niers.conf.iers_degraded_accuracy = 'warn'\n\n\nclass blk(gr.sync_block):\n    \"\"\
-      \"Stage 5 source/site/time astronomy-coordinate engine.\"\"\"\n\n    def __init__(\n        self,\n        fft_size=4096,\n\
-      \        site_lat_deg=-32.724,\n        site_lon_deg=152.130167,\n        site_height_m=70.0,\n        source_mode=0,\n\
-      \        manual_ra_hours=5.0,\n        manual_dec_deg=-30.0,\n    ):\n        self.fft_size = int(fft_size)\n      \
-      \  self.site_lat_deg = float(site_lat_deg)\n        self.site_lon_deg = float(site_lon_deg)\n        self.site_height_m\
-      \ = float(site_height_m)\n        self.source_mode = int(source_mode)\n        self.manual_ra_hours = float(manual_ra_hours)\n\
-      \        self.manual_dec_deg = float(manual_dec_deg)\n        self._last_update = 0.0\n        self._cache = np.full(7,\
-      \ np.nan, dtype=np.float32)\n        gr.sync_block.__init__(\n            self,\n            name='Astronomy Coordinate\
-      \ Engine',\n            in_sig=[(np.complex64, self.fft_size)],\n            out_sig=[\n                np.float32,\n\
-      \                np.float32,\n                np.float32,\n                np.float32,\n                np.float32,\n\
-      \                np.float32,\n                np.float32,\n            ],\n        )\n\n    def _invalidate(self):\n\
-      \        self._last_update = 0.0\n\n    def set_site_lat_deg(self, value):\n        self.site_lat_deg = float(value)\n\
-      \        self._invalidate()\n\n    def set_site_lon_deg(self, value):\n        self.site_lon_deg = float(value)\n  \
-      \      self._invalidate()\n\n    def set_site_height_m(self, value):\n        self.site_height_m = float(value)\n  \
-      \      self._invalidate()\n\n    def set_source_mode(self, value):\n        self.source_mode = int(value)\n        self._invalidate()\n\
-      \n    def set_manual_ra_hours(self, value):\n        self.manual_ra_hours = float(value)\n        self._invalidate()\n\
-      \n    def set_manual_dec_deg(self, value):\n        self.manual_dec_deg = float(value)\n        self._invalidate()\n\
-      \n    def _compute(self):\n        site_lat_deg = float(self.site_lat_deg)\n        site_lon_deg = float(self.site_lon_deg)\n\
-      \        site_height_m = float(self.site_height_m)\n        source_mode = int(self.source_mode)\n        manual_ra_hours\
-      \ = float(self.manual_ra_hours)\n        manual_dec_deg = float(self.manual_dec_deg)\n\n        location = EarthLocation(\n\
-      \            lat=site_lat_deg * u.deg,\n            lon=site_lon_deg * u.deg,\n            height=site_height_m * u.m,\n\
-      \        )\n        obstime = Time.now()\n        obstime.location = location\n\n        if source_mode == 0:\n    \
-      \        source_coord = get_sun(obstime)\n        else:\n            source_coord = SkyCoord(\n                ra=manual_ra_hours\
-      \ * u.hourangle,\n                dec=manual_dec_deg * u.deg,\n                frame='icrs',\n            )\n\n    \
-      \    apparent = source_coord.transform_to(TETE(obstime=obstime, location=location))\n        altaz = source_coord.transform_to(\n\
-      \            AltAz(obstime=obstime, location=location, pressure=0 * u.hPa)\n        )\n\n        utc_dt = obstime.utc.datetime\n\
-      \        utc_hour = (\n            utc_dt.hour\n            + utc_dt.minute / 60.0\n            + (utc_dt.second + utc_dt.microsecond\
-      \ * 1e-6) / 3600.0\n        )\n        lmst_hour = (\n            obstime.sidereal_time('apparent', longitude=site_lon_deg\
-      \ * u.deg).hour\n            % 24.0\n        )\n        apparent_ra_hour = apparent.ra.hour % 24.0\n        apparent_dec_deg\
-      \ = apparent.dec.deg\n        ha_hour = ((lmst_hour - apparent_ra_hour + 12.0) % 24.0) - 12.0\n\n        self._cache\
-      \ = np.array(\n            [\n                utc_hour,\n                lmst_hour,\n                ha_hour,\n    \
-      \            altaz.az.deg % 360.0,\n                altaz.alt.deg,\n                apparent_ra_hour,\n            \
-      \    apparent_dec_deg,\n            ],\n            dtype=np.float32,\n        )\n        self._last_update = time.monotonic()\n\
-      \n    def work(self, input_items, output_items):\n        nout = len(input_items[0])\n        if nout == 0:\n      \
-      \      return 0\n\n        if self._last_update == 0.0 or time.monotonic() - self._last_update >= 1.0:\n           \
-      \ try:\n                self._compute()\n            except Exception as exc:\n                print(f\"Stage 5 astronomy\
-      \ error: {exc}\", flush=True)\n                self._cache = np.full(7, np.nan, dtype=np.float32)\n                self._last_update\
-      \ = time.monotonic()\n\n        for idx, value in enumerate(self._cache):\n            output_items[idx][:nout] = value\n\
+    _source_code: "import time\n\nimport numpy as np\nfrom gnuradio import gr\n\n\
+      from astropy import units as u\nfrom astropy.coordinates import AltAz, EarthLocation,\
+      \ SkyCoord, TETE, get_sun\nfrom astropy.time import Time\nfrom astropy.utils\
+      \ import iers\n\niers.conf.auto_download = False\niers.conf.iers_degraded_accuracy\
+      \ = 'warn'\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 5 source/site/time\
+      \ astronomy-coordinate engine.\"\"\"\n\n    def __init__(\n        self,\n \
+      \       fft_size=4096,\n        site_lat_deg=-32.724,\n        site_lon_deg=152.130167,\n\
+      \        site_height_m=70.0,\n        source_mode=0,\n        manual_ra_hours=5.0,\n\
+      \        manual_dec_deg=-30.0,\n    ):\n        self.fft_size = int(fft_size)\n\
+      \        self.site_lat_deg = float(site_lat_deg)\n        self.site_lon_deg\
+      \ = float(site_lon_deg)\n        self.site_height_m = float(site_height_m)\n\
+      \        self.source_mode = int(source_mode)\n        self.manual_ra_hours =\
+      \ float(manual_ra_hours)\n        self.manual_dec_deg = float(manual_dec_deg)\n\
+      \        self._last_update = 0.0\n        self._cache = np.full(7, np.nan, dtype=np.float32)\n\
+      \        gr.sync_block.__init__(\n            self,\n            name='Astronomy\
+      \ Coordinate Engine',\n            in_sig=[(np.complex64, self.fft_size)],\n\
+      \            out_sig=[\n                np.float32,\n                np.float32,\n\
+      \                np.float32,\n                np.float32,\n                np.float32,\n\
+      \                np.float32,\n                np.float32,\n            ],\n\
+      \        )\n\n    def _invalidate(self):\n        self._last_update = 0.0\n\n\
+      \    def set_site_lat_deg(self, value):\n        self.site_lat_deg = float(value)\n\
+      \        self._invalidate()\n\n    def set_site_lon_deg(self, value):\n    \
+      \    self.site_lon_deg = float(value)\n        self._invalidate()\n\n    def\
+      \ set_site_height_m(self, value):\n        self.site_height_m = float(value)\n\
+      \        self._invalidate()\n\n    def set_source_mode(self, value):\n     \
+      \   self.source_mode = int(value)\n        self._invalidate()\n\n    def set_manual_ra_hours(self,\
+      \ value):\n        self.manual_ra_hours = float(value)\n        self._invalidate()\n\
+      \n    def set_manual_dec_deg(self, value):\n        self.manual_dec_deg = float(value)\n\
+      \        self._invalidate()\n\n    def _compute(self):\n        site_lat_deg\
+      \ = float(self.site_lat_deg)\n        site_lon_deg = float(self.site_lon_deg)\n\
+      \        site_height_m = float(self.site_height_m)\n        source_mode = int(self.source_mode)\n\
+      \        manual_ra_hours = float(self.manual_ra_hours)\n        manual_dec_deg\
+      \ = float(self.manual_dec_deg)\n\n        location = EarthLocation(\n      \
+      \      lat=site_lat_deg * u.deg,\n            lon=site_lon_deg * u.deg,\n  \
+      \          height=site_height_m * u.m,\n        )\n        obstime = Time.now()\n\
+      \        obstime.location = location\n\n        if source_mode == 0:\n     \
+      \       source_coord = get_sun(obstime)\n        else:\n            source_coord\
+      \ = SkyCoord(\n                ra=manual_ra_hours * u.hourangle,\n         \
+      \       dec=manual_dec_deg * u.deg,\n                frame='icrs',\n       \
+      \     )\n\n        apparent = source_coord.transform_to(TETE(obstime=obstime,\
+      \ location=location))\n        altaz = source_coord.transform_to(\n        \
+      \    AltAz(obstime=obstime, location=location, pressure=0 * u.hPa)\n       \
+      \ )\n\n        utc_dt = obstime.utc.datetime\n        utc_hour = (\n       \
+      \     utc_dt.hour\n            + utc_dt.minute / 60.0\n            + (utc_dt.second\
+      \ + utc_dt.microsecond * 1e-6) / 3600.0\n        )\n        lmst_hour = (\n\
+      \            obstime.sidereal_time('apparent', longitude=site_lon_deg * u.deg).hour\n\
+      \            % 24.0\n        )\n        apparent_ra_hour = apparent.ra.hour\
+      \ % 24.0\n        apparent_dec_deg = apparent.dec.deg\n        ha_hour = ((lmst_hour\
+      \ - apparent_ra_hour + 12.0) % 24.0) - 12.0\n\n        self._cache = np.array(\n\
+      \            [\n                utc_hour,\n                lmst_hour,\n    \
+      \            ha_hour,\n                altaz.az.deg % 360.0,\n             \
+      \   altaz.alt.deg,\n                apparent_ra_hour,\n                apparent_dec_deg,\n\
+      \            ],\n            dtype=np.float32,\n        )\n        self._last_update\
+      \ = time.monotonic()\n\n    def work(self, input_items, output_items):\n   \
+      \     nout = len(input_items[0])\n        if nout == 0:\n            return\
+      \ 0\n\n        if self._last_update == 0.0 or time.monotonic() - self._last_update\
+      \ >= 1.0:\n            try:\n                self._compute()\n            except\
+      \ Exception as exc:\n                print(f\"Stage 5 astronomy error: {exc}\"\
+      , flush=True)\n                self._cache = np.full(7, np.nan, dtype=np.float32)\n\
+      \                self._last_update = time.monotonic()\n\n        for idx, value\
+      \ in enumerate(self._cache):\n            output_items[idx][:nout] = value\n\
       \n        return nout\n"
     affinity: ''
     alias: ''
-    comment: 'Stage 5 only: low-rate Astropy source/site/time coordinates after cross_accum. Does not correct C01.'
+    comment: 'Stage 5 only: low-rate Astropy source/site/time coordinates after cross_accum.
+      Does not correct C01.'
     fft_size: fft_size
     manual_dec_deg: manual_dec_deg
     manual_ra_hours: manual_ra_hours
@@ -646,11 +678,13 @@ blocks:
     site_lon_deg: site_lon_deg
     source_mode: source_mode
   states:
-    _io_cache: ('Astronomy Coordinate Engine', 'blk', [('fft_size', '4096'), ('site_lat_deg', '-32.724'), ('site_lon_deg',
-      '152.130167'), ('site_height_m', '0.0'), ('source_mode', '0'), ('manual_ra_hours', '5.0'), ('manual_dec_deg', '-30.0')],
-      [('0', 'complex', 4096)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1), ('3', 'float', 1), ('4', 'float',
-      1), ('5', 'float', 1), ('6', 'float', 1)], 'Stage 5 source/site/time astronomy-coordinate engine.', ['fft_size', 'manual_dec_deg',
-      'manual_ra_hours', 'site_height_m', 'site_lat_deg', 'site_lon_deg', 'source_mode'])
+    _io_cache: ('Astronomy Coordinate Engine', 'blk', [('fft_size', '4096'), ('site_lat_deg',
+      '-32.724'), ('site_lon_deg', '152.130167'), ('site_height_m', '0.0'), ('source_mode',
+      '0'), ('manual_ra_hours', '5.0'), ('manual_dec_deg', '-30.0')], [('0', 'complex',
+      4096)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1), ('3', 'float',
+      1), ('4', 'float', 1), ('5', 'float', 1), ('6', 'float', 1)], 'Stage 5 source/site/time
+      astronomy-coordinate engine.', ['fft_size', 'manual_dec_deg', 'manual_ra_hours',
+      'site_height_m', 'site_lat_deg', 'site_lon_deg', 'source_mode'])
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -729,68 +763,95 @@ blocks:
 - name: baseline_geometry_engine
   id: epy_block
   parameters:
-    _source_code: "import math\n\nimport numpy as np\nfrom gnuradio import gr\n\n\nC_M_S = 299792458.0\n\n\nclass blk(gr.sync_block):\n\
-      \    \"\"\"Stage 6 baseline geometry and predicted geometric quantities.\"\"\"\n\n    def __init__(\n        self,\n\
-      \        site_lat_deg=-32.724,\n        baseline_e_m=-5.785,\n        baseline_n_m=0.095,\n        baseline_u_m=0.580,\n\
-      \        sky_cf=4.800e9,\n    ):\n        self.site_lat_deg = float(site_lat_deg)\n        self.baseline_e_m = float(baseline_e_m)\n\
-      \        self.baseline_n_m = float(baseline_n_m)\n        self.baseline_u_m = float(baseline_u_m)\n        self.sky_cf\
-      \ = float(sky_cf)\n        self._last_utc_hour = None\n        self._last_tau_s = None\n        self._last_fringe_hz\
-      \ = np.nan\n        self._last_period_s = np.nan\n        gr.sync_block.__init__(\n            self,\n            name='Baseline\
-      \ Geometry Engine',\n            in_sig=[np.float32, np.float32, np.float32],\n            out_sig=[\n             \
-      \   np.float32,\n                np.float32,\n                np.float32,\n                np.float32,\n           \
-      \     np.float32,\n                np.float32,\n                np.float32,\n                np.float32,\n         \
-      \   ],\n        )\n\n    def set_site_lat_deg(self, value):\n        self.site_lat_deg = float(value)\n\n    def set_baseline_e_m(self,\
-      \ value):\n        self.baseline_e_m = float(value)\n\n    def set_baseline_n_m(self, value):\n        self.baseline_n_m\
-      \ = float(value)\n\n    def set_baseline_u_m(self, value):\n        self.baseline_u_m = float(value)\n\n    def set_sky_cf(self,\
-      \ value):\n        self.sky_cf = float(value)\n\n    @staticmethod\n    def _wrap_deg_pm180(angle_deg):\n        return\
-      \ ((angle_deg + 180.0) % 360.0) - 180.0\n\n    @staticmethod\n    def _delta_utc_seconds(utc_hour, prev_utc_hour):\n\
-      \        delta_h = utc_hour - prev_utc_hour\n        if delta_h <= -12.0:\n            delta_h += 24.0\n        elif\
-      \ delta_h > 12.0:\n            delta_h -= 24.0\n        return delta_h * 3600.0\n\n    def _compute_geometry(self, utc_hour,\
-      \ ha_hour, apparent_dec_deg):\n        site_lat_deg = float(self.site_lat_deg)\n        baseline = np.array(\n     \
-      \       [\n                float(self.baseline_e_m),\n                float(self.baseline_n_m),\n                float(self.baseline_u_m),\n\
-      \            ],\n            dtype=np.float64,\n        )\n        sky_cf = float(self.sky_cf)\n\n        phi = math.radians(site_lat_deg)\n\
-      \        h = math.radians(float(ha_hour) * 15.0)\n        dec = math.radians(float(apparent_dec_deg))\n\n        u_hat\
-      \ = np.array(\n            [\n                math.cos(h),\n                -math.sin(phi) * math.sin(h),\n        \
-      \        math.cos(phi) * math.sin(h),\n            ],\n            dtype=np.float64,\n        )\n        v_hat = np.array(\n\
-      \            [\n                math.sin(dec) * math.sin(h),\n                math.cos(phi) * math.cos(dec)\n      \
-      \          + math.sin(phi) * math.sin(dec) * math.cos(h),\n                math.sin(phi) * math.cos(dec)\n         \
-      \       - math.cos(phi) * math.sin(dec) * math.cos(h),\n            ],\n            dtype=np.float64,\n        )\n \
-      \       w_hat = np.array(\n            [\n                -math.cos(dec) * math.sin(h),\n                math.sin(dec)\
-      \ * math.cos(phi)\n                - math.cos(dec) * math.cos(h) * math.sin(phi),\n                math.sin(dec) * math.sin(phi)\n\
-      \                + math.cos(dec) * math.cos(h) * math.cos(phi),\n            ],\n            dtype=np.float64,\n   \
-      \     )\n\n        u_m = float(np.dot(baseline, u_hat))\n        v_m = float(np.dot(baseline, v_hat))\n        w_m =\
-      \ float(np.dot(baseline, w_hat))\n        tau_s = w_m / C_M_S\n        tau_ns = tau_s * 1e9\n        arrival_delay_10_ns\
-      \ = -tau_ns\n        phase_deg = self._wrap_deg_pm180(360.0 * sky_cf * tau_s)\n\n        fringe_hz = self._last_fringe_hz\n\
-      \        period_s = self._last_period_s\n        if self._last_utc_hour is not None and self._last_tau_s is not None:\n\
-      \            dt_s = self._delta_utc_seconds(float(utc_hour), self._last_utc_hour)\n            if dt_s > 1e-6:\n   \
-      \             fringe_hz = sky_cf * (tau_s - self._last_tau_s) / dt_s\n                if abs(fringe_hz) > 1e-12:\n \
-      \                   period_s = 1.0 / abs(fringe_hz)\n                else:\n                    period_s = math.inf\n\
-      \                self._last_fringe_hz = fringe_hz\n                self._last_period_s = period_s\n\n        if self._last_utc_hour\
-      \ is None or abs(self._delta_utc_seconds(float(utc_hour), self._last_utc_hour)) > 1e-6:\n            self._last_utc_hour\
-      \ = float(utc_hour)\n            self._last_tau_s = tau_s\n\n        return np.array(\n            [\n             \
-      \   u_m,\n                v_m,\n                w_m,\n                tau_ns,\n                arrival_delay_10_ns,\n\
-      \                phase_deg,\n                fringe_hz,\n                period_s,\n            ],\n            dtype=np.float32,\n\
-      \        )\n\n    def work(self, input_items, output_items):\n        nout = len(input_items[0])\n        for i in range(nout):\n\
-      \            try:\n                values = self._compute_geometry(\n                    float(input_items[0][i]),\n\
-      \                    float(input_items[1][i]),\n                    float(input_items[2][i]),\n                )\n \
-      \           except Exception as exc:\n                print(f\"Stage 6 baseline geometry error: {exc}\", flush=True)\n\
-      \                values = np.full(8, np.nan, dtype=np.float32)\n\n            for out_idx, value in enumerate(values):\n\
-      \                output_items[out_idx][i] = value\n\n        return nout\n"
+    _source_code: "import math\n\nimport numpy as np\nfrom gnuradio import gr\n\n\n\
+      C_M_S = 299792458.0\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 6 baseline\
+      \ geometry and predicted geometric quantities.\"\"\"\n\n    def __init__(\n\
+      \        self,\n        site_lat_deg=-32.724,\n        baseline_e_m=-5.785,\n\
+      \        baseline_n_m=0.095,\n        baseline_u_m=0.580,\n        sky_cf=4.800e9,\n\
+      \    ):\n        self.site_lat_deg = float(site_lat_deg)\n        self.baseline_e_m\
+      \ = float(baseline_e_m)\n        self.baseline_n_m = float(baseline_n_m)\n \
+      \       self.baseline_u_m = float(baseline_u_m)\n        self.sky_cf = float(sky_cf)\n\
+      \        self._last_utc_hour = None\n        self._last_tau_s = None\n     \
+      \   self._last_fringe_hz = np.nan\n        self._last_period_s = np.nan\n  \
+      \      gr.sync_block.__init__(\n            self,\n            name='Baseline\
+      \ Geometry Engine',\n            in_sig=[np.float32, np.float32, np.float32],\n\
+      \            out_sig=[\n                np.float32,\n                np.float32,\n\
+      \                np.float32,\n                np.float32,\n                np.float32,\n\
+      \                np.float32,\n                np.float32,\n                np.float32,\n\
+      \            ],\n        )\n\n    def set_site_lat_deg(self, value):\n     \
+      \   self.site_lat_deg = float(value)\n\n    def set_baseline_e_m(self, value):\n\
+      \        self.baseline_e_m = float(value)\n\n    def set_baseline_n_m(self,\
+      \ value):\n        self.baseline_n_m = float(value)\n\n    def set_baseline_u_m(self,\
+      \ value):\n        self.baseline_u_m = float(value)\n\n    def set_sky_cf(self,\
+      \ value):\n        self.sky_cf = float(value)\n\n    @staticmethod\n    def\
+      \ _wrap_deg_pm180(angle_deg):\n        return ((angle_deg + 180.0) % 360.0)\
+      \ - 180.0\n\n    @staticmethod\n    def _delta_utc_seconds(utc_hour, prev_utc_hour):\n\
+      \        delta_h = utc_hour - prev_utc_hour\n        if delta_h <= -12.0:\n\
+      \            delta_h += 24.0\n        elif delta_h > 12.0:\n            delta_h\
+      \ -= 24.0\n        return delta_h * 3600.0\n\n    def _compute_geometry(self,\
+      \ utc_hour, ha_hour, apparent_dec_deg):\n        site_lat_deg = float(self.site_lat_deg)\n\
+      \        baseline = np.array(\n            [\n                float(self.baseline_e_m),\n\
+      \                float(self.baseline_n_m),\n                float(self.baseline_u_m),\n\
+      \            ],\n            dtype=np.float64,\n        )\n        sky_cf =\
+      \ float(self.sky_cf)\n\n        phi = math.radians(site_lat_deg)\n        h\
+      \ = math.radians(float(ha_hour) * 15.0)\n        dec = math.radians(float(apparent_dec_deg))\n\
+      \n        u_hat = np.array(\n            [\n                math.cos(h),\n \
+      \               -math.sin(phi) * math.sin(h),\n                math.cos(phi)\
+      \ * math.sin(h),\n            ],\n            dtype=np.float64,\n        )\n\
+      \        v_hat = np.array(\n            [\n                math.sin(dec) * math.sin(h),\n\
+      \                math.cos(phi) * math.cos(dec)\n                + math.sin(phi)\
+      \ * math.sin(dec) * math.cos(h),\n                math.sin(phi) * math.cos(dec)\n\
+      \                - math.cos(phi) * math.sin(dec) * math.cos(h),\n          \
+      \  ],\n            dtype=np.float64,\n        )\n        w_hat = np.array(\n\
+      \            [\n                -math.cos(dec) * math.sin(h),\n            \
+      \    math.sin(dec) * math.cos(phi)\n                - math.cos(dec) * math.cos(h)\
+      \ * math.sin(phi),\n                math.sin(dec) * math.sin(phi)\n        \
+      \        + math.cos(dec) * math.cos(h) * math.cos(phi),\n            ],\n  \
+      \          dtype=np.float64,\n        )\n\n        u_m = float(np.dot(baseline,\
+      \ u_hat))\n        v_m = float(np.dot(baseline, v_hat))\n        w_m = float(np.dot(baseline,\
+      \ w_hat))\n        tau_s = w_m / C_M_S\n        tau_ns = tau_s * 1e9\n     \
+      \   arrival_delay_10_ns = -tau_ns\n        phase_deg = self._wrap_deg_pm180(360.0\
+      \ * sky_cf * tau_s)\n\n        fringe_hz = self._last_fringe_hz\n        period_s\
+      \ = self._last_period_s\n        if self._last_utc_hour is not None and self._last_tau_s\
+      \ is not None:\n            dt_s = self._delta_utc_seconds(float(utc_hour),\
+      \ self._last_utc_hour)\n            if dt_s > 1e-6:\n                fringe_hz\
+      \ = sky_cf * (tau_s - self._last_tau_s) / dt_s\n                if abs(fringe_hz)\
+      \ > 1e-12:\n                    period_s = 1.0 / abs(fringe_hz)\n          \
+      \      else:\n                    period_s = math.inf\n                self._last_fringe_hz\
+      \ = fringe_hz\n                self._last_period_s = period_s\n\n        if\
+      \ self._last_utc_hour is None or abs(self._delta_utc_seconds(float(utc_hour),\
+      \ self._last_utc_hour)) > 1e-6:\n            self._last_utc_hour = float(utc_hour)\n\
+      \            self._last_tau_s = tau_s\n\n        return np.array(\n        \
+      \    [\n                u_m,\n                v_m,\n                w_m,\n \
+      \               tau_ns,\n                arrival_delay_10_ns,\n            \
+      \    phase_deg,\n                fringe_hz,\n                period_s,\n   \
+      \         ],\n            dtype=np.float32,\n        )\n\n    def work(self,\
+      \ input_items, output_items):\n        nout = len(input_items[0])\n        for\
+      \ i in range(nout):\n            try:\n                values = self._compute_geometry(\n\
+      \                    float(input_items[0][i]),\n                    float(input_items[1][i]),\n\
+      \                    float(input_items[2][i]),\n                )\n        \
+      \    except Exception as exc:\n                print(f\"Stage 6 baseline geometry\
+      \ error: {exc}\", flush=True)\n                values = np.full(8, np.nan, dtype=np.float32)\n\
+      \n            for out_idx, value in enumerate(values):\n                output_items[out_idx][i]\
+      \ = value\n\n        return nout\n"
     affinity: ''
     alias: ''
     baseline_e_m: baseline_e_m
     baseline_n_m: baseline_n_m
     baseline_u_m: baseline_u_m
-    comment: 'Stage 6 only: low-rate baseline geometry display after Stage 5 coordinates. Does not correct C01.'
+    comment: 'Stage 6 only: low-rate baseline geometry display after Stage 5 coordinates.
+      Does not correct C01.'
     maxoutbuf: '0'
     minoutbuf: '0'
     site_lat_deg: site_lat_deg
     sky_cf: sky_cf
   states:
-    _io_cache: ('Baseline Geometry Engine', 'blk', [('site_lat_deg', '-32.724'), ('baseline_e_m', '-5.785'), ('baseline_n_m',
-      '0.095'), ('baseline_u_m', '0.580'), ('sky_cf', '4800000000.0')], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float',
-      1)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1), ('3', 'float', 1), ('4', 'float', 1), ('5', 'float',
-      1), ('6', 'float', 1), ('7', 'float', 1)], 'Stage 6 baseline geometry and predicted geometric quantities.', ['site_lat_deg',
+    _io_cache: ('Baseline Geometry Engine', 'blk', [('site_lat_deg', '-32.724'), ('baseline_e_m',
+      '-5.785'), ('baseline_n_m', '0.095'), ('baseline_u_m', '0.580'), ('sky_cf',
+      '4800000000.0')], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1)],
+      [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1), ('3', 'float', 1),
+      ('4', 'float', 1), ('5', 'float', 1), ('6', 'float', 1), ('7', 'float', 1)],
+      'Stage 6 baseline geometry and predicted geometric quantities.', ['site_lat_deg',
       'baseline_e_m', 'baseline_n_m', 'baseline_u_m', 'sky_cf'])
     bus_sink: false
     bus_source: false
@@ -1355,48 +1416,64 @@ blocks:
 - name: phase_slope_delay_estimator
   id: epy_block
   parameters:
-    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 4 phase-slope\
-      \ / differential-delay estimator.\n\n    Fits unwrapped C01 phase against increasing B210 baseband/IF\n    frequency.\
-      \ Cross-spectrum convention is C01 = X0 * conj(X1).\n    Provisional sign convention: positive RX1 delay relative to\
-      \ RX0\n    should produce positive phase slope versus increasing IF/baseband\n    frequency and positive reported differential\
-      \ delay.\n    \"\"\"\n\n    def __init__(self, fft_size=4096, samp_rate=30.72e6, phase_fit_edge_exclude_pct=7.5):\n\
-      \        self.fft_size = int(fft_size)\n        self.samp_rate = float(samp_rate)\n        self.phase_fit_edge_exclude_pct\
-      \ = float(phase_fit_edge_exclude_pct)\n        gr.sync_block.__init__(\n            self,\n            name='Phase Slope\
-      \ / Delay Estimator',\n            in_sig=[(np.complex64, self.fft_size)],\n            out_sig=[np.float32, np.float32,\
-      \ np.float32],\n        )\n        self._f = (\n            (np.arange(self.fft_size, dtype=np.float64) - self.fft_size\
-      \ / 2.0)\n            * self.samp_rate\n            / self.fft_size\n        )\n\n    def set_phase_fit_edge_exclude_pct(self,\
-      \ value):\n        self.phase_fit_edge_exclude_pct = float(value)\n\n    def _fit_vectors(self, c01):\n        edge_pct\
-      \ = float(self.phase_fit_edge_exclude_pct)\n        if edge_pct < 0.0:\n            print(\n                f\"Stage\
-      \ 4 phase fit warning: edge exclusion {edge_pct}% is below 0%; using 0%.\",\n                flush=True,\n         \
-      \   )\n            edge_pct = 0.0\n        elif edge_pct >= 50.0:\n            print(\n                f\"Stage 4 phase\
-      \ fit warning: edge exclusion {edge_pct}% is >= 50%; using 49%.\",\n                flush=True,\n            )\n   \
-      \         edge_pct = 49.0\n\n        n_bins = len(c01)\n        n_edge = int(n_bins * (edge_pct / 100.0))\n        n_fit\
-      \ = n_bins - 2 * n_edge\n        if n_fit < 2:\n            print(\n                f\"Stage 4 phase fit warning: edge\
-      \ exclusion leaves {n_fit} bins; using full spectrum.\",\n                flush=True,\n            )\n            n_edge\
-      \ = 0\n\n        if n_edge > 0:\n            return c01[n_edge:-n_edge], self._f[n_edge:-n_edge]\n        return c01,\
-      \ self._f\n\n    def work(self, input_items, output_items):\n        spectra = input_items[0]\n        delay_ns = output_items[0]\n\
-      \        slope_deg_per_mhz = output_items[1]\n        fit_rms_deg = output_items[2]\n\n        for i, c01 in enumerate(spectra):\n\
-      \            c01_fit, f_fit = self._fit_vectors(c01)\n            phase = np.angle(c01_fit)\n            phase_unwrapped\
-      \ = np.unwrap(phase).astype(np.float64)\n            slope, intercept = np.polyfit(f_fit, phase_unwrapped, 1)\n    \
-      \        phase_fit = slope * f_fit + intercept\n            residual = phase_unwrapped - phase_fit\n\n            delay_ns[i]\
-      \ = np.float32((slope / (2.0 * np.pi)) * 1e9)\n            slope_deg_per_mhz[i] = np.float32(slope * (180.0 / np.pi)\
-      \ * 1e6)\n            fit_rms_deg[i] = np.float32(\n                np.sqrt(np.mean(residual * residual)) * (180.0 /\
-      \ np.pi)\n            )\n\n        return len(spectra)\n"
+    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"Stage 4 phase-slope / differential-delay estimator.\n\n    Fits unwrapped\
+      \ C01 phase against increasing B210 baseband/IF\n    frequency. Cross-spectrum\
+      \ convention is C01 = X0 * conj(X1).\n    Provisional sign convention: positive\
+      \ RX1 delay relative to RX0\n    should produce positive phase slope versus\
+      \ increasing IF/baseband\n    frequency and positive reported differential delay.\n\
+      \    \"\"\"\n\n    def __init__(self, fft_size=4096, samp_rate=30.72e6, phase_fit_edge_exclude_pct=7.5):\n\
+      \        self.fft_size = int(fft_size)\n        self.samp_rate = float(samp_rate)\n\
+      \        self.phase_fit_edge_exclude_pct = float(phase_fit_edge_exclude_pct)\n\
+      \        gr.sync_block.__init__(\n            self,\n            name='Phase\
+      \ Slope / Delay Estimator',\n            in_sig=[(np.complex64, self.fft_size)],\n\
+      \            out_sig=[np.float32, np.float32, np.float32],\n        )\n    \
+      \    self._f = (\n            (np.arange(self.fft_size, dtype=np.float64) -\
+      \ self.fft_size / 2.0)\n            * self.samp_rate\n            / self.fft_size\n\
+      \        )\n\n    def set_phase_fit_edge_exclude_pct(self, value):\n       \
+      \ self.phase_fit_edge_exclude_pct = float(value)\n\n    def _fit_vectors(self,\
+      \ c01):\n        edge_pct = float(self.phase_fit_edge_exclude_pct)\n       \
+      \ if edge_pct < 0.0:\n            print(\n                f\"Stage 4 phase fit\
+      \ warning: edge exclusion {edge_pct}% is below 0%; using 0%.\",\n          \
+      \      flush=True,\n            )\n            edge_pct = 0.0\n        elif\
+      \ edge_pct >= 50.0:\n            print(\n                f\"Stage 4 phase fit\
+      \ warning: edge exclusion {edge_pct}% is >= 50%; using 49%.\",\n           \
+      \     flush=True,\n            )\n            edge_pct = 49.0\n\n        n_bins\
+      \ = len(c01)\n        n_edge = int(n_bins * (edge_pct / 100.0))\n        n_fit\
+      \ = n_bins - 2 * n_edge\n        if n_fit < 2:\n            print(\n       \
+      \         f\"Stage 4 phase fit warning: edge exclusion leaves {n_fit} bins;\
+      \ using full spectrum.\",\n                flush=True,\n            )\n    \
+      \        n_edge = 0\n\n        if n_edge > 0:\n            return c01[n_edge:-n_edge],\
+      \ self._f[n_edge:-n_edge]\n        return c01, self._f\n\n    def work(self,\
+      \ input_items, output_items):\n        spectra = input_items[0]\n        delay_ns\
+      \ = output_items[0]\n        slope_deg_per_mhz = output_items[1]\n        fit_rms_deg\
+      \ = output_items[2]\n\n        for i, c01 in enumerate(spectra):\n         \
+      \   c01_fit, f_fit = self._fit_vectors(c01)\n            phase = np.angle(c01_fit)\n\
+      \            phase_unwrapped = np.unwrap(phase).astype(np.float64)\n       \
+      \     slope, intercept = np.polyfit(f_fit, phase_unwrapped, 1)\n           \
+      \ phase_fit = slope * f_fit + intercept\n            residual = phase_unwrapped\
+      \ - phase_fit\n\n            delay_ns[i] = np.float32((slope / (2.0 * np.pi))\
+      \ * 1e9)\n            slope_deg_per_mhz[i] = np.float32(slope * (180.0 / np.pi)\
+      \ * 1e6)\n            fit_rms_deg[i] = np.float32(\n                np.sqrt(np.mean(residual\
+      \ * residual)) * (180.0 / np.pi)\n            )\n\n        return len(spectra)\n"
     affinity: ''
     alias: ''
-    comment: 'Stage 4 only: low-rate estimator after cross_accum. Fits against increasing baseband/IF frequency, not displayed
-      sky frequency.'
+    comment: 'Stage 4 only: low-rate estimator after cross_accum. Fits against increasing
+      baseband/IF frequency, not displayed sky frequency.'
     fft_size: fft_size
     maxoutbuf: '0'
     minoutbuf: '0'
     phase_fit_edge_exclude_pct: phase_fit_edge_exclude_pct
     samp_rate: samp_rate
   states:
-    _io_cache: '(''Phase Slope / Delay Estimator'', ''blk'', [(''fft_size'', ''4096''), (''samp_rate'', ''30720000.0''), (''phase_fit_edge_exclude_pct'',
-      ''7.5'')], [(''0'', ''complex'', 4096)], [(''0'', ''float'', 1), (''1'', ''float'', 1), (''2'', ''float'', 1)], ''Stage
-      4 phase-slope / differential-delay estimator.\n\n    Fits unwrapped C01 phase against increasing B210 baseband/IF\n    frequency.
-      Cross-spectrum convention is C01 = X0 * conj(X1).\n    Provisional sign convention: positive RX1 delay relative to RX0\n    should
-      produce positive phase slope versus increasing IF/baseband\n    frequency and positive reported differential delay.\n    '',
+    _io_cache: '(''Phase Slope / Delay Estimator'', ''blk'', [(''fft_size'', ''4096''),
+      (''samp_rate'', ''30720000.0''), (''phase_fit_edge_exclude_pct'', ''7.5'')],
+      [(''0'', ''complex'', 4096)], [(''0'', ''float'', 1), (''1'', ''float'', 1),
+      (''2'', ''float'', 1)], ''Stage 4 phase-slope / differential-delay estimator.\n\n    Fits
+      unwrapped C01 phase against increasing B210 baseband/IF\n    frequency. Cross-spectrum
+      convention is C01 = X0 * conj(X1).\n    Provisional sign convention: positive
+      RX1 delay relative to RX0\n    should produce positive phase slope versus increasing
+      IF/baseband\n    frequency and positive reported differential delay.\n    '',
       [''fft_size'', ''samp_rate'', ''phase_fit_edge_exclude_pct''])'
     bus_sink: false
     bus_source: false
@@ -1410,32 +1487,43 @@ blocks:
 - name: delay_slope_corrector
   id: epy_block
   parameters:
-    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 7 frequency-domain\
-      \ delay-slope corrector.\n\n    Input C01 uses the fixed convention C01 = X0 * conj(X1).\n    Positive delay means RX1\
-      \ is delayed relative to RX0 and produces a\n    positive phase slope versus increasing B210 baseband/IF frequency.\n\
-      \    This block removes that slope using exp(-j*2*pi*f_bb*tau).\n    The centre FFT bin is not rotated because f_bb[centre]\
-      \ = 0.\n    \"\"\"\n\n    def __init__(\n        self,\n        fft_size=4096,\n        samp_rate=30.72e6,\n       \
-      \ instrument_delay_ns=0.0,\n        delay_correction_enable=True,\n    ):\n        self.fft_size = int(fft_size)\n \
-      \       self.samp_rate = float(samp_rate)\n        self.instrument_delay_ns = float(instrument_delay_ns)\n        self.delay_correction_enable\
-      \ = self._as_bool(delay_correction_enable)\n        gr.sync_block.__init__(\n            self,\n            name='Delay\
-      \ Slope Corrector',\n            in_sig=[(np.complex64, self.fft_size), np.float32],\n            out_sig=[(np.complex64,\
-      \ self.fft_size)],\n        )\n        self._f_bb = (\n            (np.arange(self.fft_size, dtype=np.float64) - self.fft_size\
-      \ / 2.0)\n            * self.samp_rate\n            / self.fft_size\n        )\n\n    @staticmethod\n    def _as_bool(value):\n\
-      \        if isinstance(value, str):\n            return value.strip().lower() in (\"1\", \"true\", \"yes\", \"on\",\
-      \ \"enable\", \"enabled\")\n        return bool(value)\n\n    def set_instrument_delay_ns(self, value):\n        self.instrument_delay_ns\
-      \ = float(value)\n\n    def set_delay_correction_enable(self, value):\n        self.delay_correction_enable = self._as_bool(value)\n\
-      \n    def work(self, input_items, output_items):\n        spectra = input_items[0]\n        geo_arrival_ns = input_items[1]\n\
-      \        corrected = output_items[0]\n        nout = len(spectra)\n\n        if not self.delay_correction_enable:\n\
-      \            corrected[:nout] = spectra\n            return nout\n\n        instrument_delay_ns = float(self.instrument_delay_ns)\n\
-      \        if not np.isfinite(instrument_delay_ns):\n            corrected[:nout] = spectra\n            return nout\n\
-      \n        for i in range(nout):\n            tau_geo_ns = float(geo_arrival_ns[i])\n            if not np.isfinite(tau_geo_ns):\n\
-      \                corrected[i] = spectra[i]\n                continue\n\n            tau_apply_s = (tau_geo_ns + instrument_delay_ns)\
-      \ * 1e-9\n            rotation = np.exp((-1j * 2.0 * np.pi * self._f_bb * tau_apply_s)).astype(np.complex64)\n     \
-      \       corrected[i] = spectra[i] * rotation\n\n        return nout\n"
+    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"Stage 7 frequency-domain delay-slope corrector.\n\n    Input C01\
+      \ uses the fixed convention C01 = X0 * conj(X1).\n    Positive delay means RX1\
+      \ is delayed relative to RX0 and produces a\n    positive phase slope versus\
+      \ increasing B210 baseband/IF frequency.\n    This block removes that slope\
+      \ using exp(-j*2*pi*f_bb*tau).\n    The centre FFT bin is not rotated because\
+      \ f_bb[centre] = 0.\n    \"\"\"\n\n    def __init__(\n        self,\n      \
+      \  fft_size=4096,\n        samp_rate=30.72e6,\n        instrument_delay_ns=0.0,\n\
+      \        delay_correction_enable=True,\n    ):\n        self.fft_size = int(fft_size)\n\
+      \        self.samp_rate = float(samp_rate)\n        self.instrument_delay_ns\
+      \ = float(instrument_delay_ns)\n        self.delay_correction_enable = self._as_bool(delay_correction_enable)\n\
+      \        gr.sync_block.__init__(\n            self,\n            name='Delay\
+      \ Slope Corrector',\n            in_sig=[(np.complex64, self.fft_size), np.float32],\n\
+      \            out_sig=[(np.complex64, self.fft_size)],\n        )\n        self._f_bb\
+      \ = (\n            (np.arange(self.fft_size, dtype=np.float64) - self.fft_size\
+      \ / 2.0)\n            * self.samp_rate\n            / self.fft_size\n      \
+      \  )\n\n    @staticmethod\n    def _as_bool(value):\n        if isinstance(value,\
+      \ str):\n            return value.strip().lower() in (\"1\", \"true\", \"yes\"\
+      , \"on\", \"enable\", \"enabled\")\n        return bool(value)\n\n    def set_instrument_delay_ns(self,\
+      \ value):\n        self.instrument_delay_ns = float(value)\n\n    def set_delay_correction_enable(self,\
+      \ value):\n        self.delay_correction_enable = self._as_bool(value)\n\n \
+      \   def work(self, input_items, output_items):\n        spectra = input_items[0]\n\
+      \        geo_arrival_ns = input_items[1]\n        corrected = output_items[0]\n\
+      \        nout = len(spectra)\n\n        if not self.delay_correction_enable:\n\
+      \            corrected[:nout] = spectra\n            return nout\n\n       \
+      \ instrument_delay_ns = float(self.instrument_delay_ns)\n        if not np.isfinite(instrument_delay_ns):\n\
+      \            corrected[:nout] = spectra\n            return nout\n\n       \
+      \ for i in range(nout):\n            tau_geo_ns = float(geo_arrival_ns[i])\n\
+      \            if not np.isfinite(tau_geo_ns):\n                corrected[i] =\
+      \ spectra[i]\n                continue\n\n            tau_apply_s = (tau_geo_ns\
+      \ + instrument_delay_ns) * 1e-9\n            rotation = np.exp((-1j * 2.0 *\
+      \ np.pi * self._f_bb * tau_apply_s)).astype(np.complex64)\n            corrected[i]\
+      \ = spectra[i] * rotation\n\n        return nout\n"
     affinity: ''
     alias: ''
-    comment: 'Stage 7 only: low-rate frequency-domain delay-slope correction after cross_accum. Does not fringe-stop centre
-      frequency.'
+    comment: 'Stage 7 only: low-rate frequency-domain delay-slope correction after
+      cross_accum. Does not fringe-stop centre frequency.'
     delay_correction_enable: delay_correction_enable
     fft_size: fft_size
     instrument_delay_ns: instrument_delay_ns
@@ -1443,9 +1531,11 @@ blocks:
     minoutbuf: '0'
     samp_rate: samp_rate
   states:
-    _io_cache: ('Delay Slope Corrector', 'blk', [('fft_size', '4096'), ('samp_rate', '30720000.0'), ('instrument_delay_ns',
-      '0.0'), ('delay_correction_enable', 'True')], [('0', 'complex', 4096), ('1', 'float', 1)], [('0', 'complex', 4096)],
-      'Stage 7 frequency-domain delay-slope corrector.', ['fft_size', 'samp_rate', 'instrument_delay_ns', 'delay_correction_enable'])
+    _io_cache: ('Delay Slope Corrector', 'blk', [('fft_size', '4096'), ('samp_rate',
+      '30720000.0'), ('instrument_delay_ns', '0.0'), ('delay_correction_enable', 'True')],
+      [('0', 'complex', 4096), ('1', 'float', 1)], [('0', 'complex', 4096)], 'Stage
+      7 frequency-domain delay-slope corrector.', ['fft_size', 'samp_rate', 'instrument_delay_ns',
+      'delay_correction_enable'])
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -1575,45 +1665,61 @@ blocks:
 - name: corrected_phase_slope_delay_estimator
   id: epy_block
   parameters:
-    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 7 corrected\
-      \ phase-slope / differential-delay diagnostic.\n\n    Fits unwrapped C01 phase against increasing B210 baseband/IF\n\
-      \    frequency. Cross-spectrum convention is C01 = X0 * conj(X1).\n    Provisional sign convention: positive RX1 delay\
-      \ relative to RX0\n    should produce positive phase slope versus increasing IF/baseband\n    frequency and positive\
-      \ reported differential delay.\n    \"\"\"\n\n    def __init__(self, fft_size=4096, samp_rate=30.72e6, phase_fit_edge_exclude_pct=7.5):\n\
-      \        self.fft_size = int(fft_size)\n        self.samp_rate = float(samp_rate)\n        self.phase_fit_edge_exclude_pct\
-      \ = float(phase_fit_edge_exclude_pct)\n        gr.sync_block.__init__(\n            self,\n            name='Corrected\
-      \ Phase Slope / Delay Estimator',\n            in_sig=[(np.complex64, self.fft_size)],\n            out_sig=[np.float32,\
-      \ np.float32, np.float32],\n        )\n        self._f = (\n            (np.arange(self.fft_size, dtype=np.float64)\
-      \ - self.fft_size / 2.0)\n            * self.samp_rate\n            / self.fft_size\n        )\n\n    def set_phase_fit_edge_exclude_pct(self,\
-      \ value):\n        self.phase_fit_edge_exclude_pct = float(value)\n\n    def _fit_vectors(self, c01):\n        edge_pct\
-      \ = float(self.phase_fit_edge_exclude_pct)\n        if edge_pct < 0.0:\n            print(\n                f\"Stage\
-      \ 4 phase fit warning: edge exclusion {edge_pct}% is below 0%; using 0%.\",\n                flush=True,\n         \
-      \   )\n            edge_pct = 0.0\n        elif edge_pct >= 50.0:\n            print(\n                f\"Stage 4 phase\
-      \ fit warning: edge exclusion {edge_pct}% is >= 50%; using 49%.\",\n                flush=True,\n            )\n   \
-      \         edge_pct = 49.0\n\n        n_bins = len(c01)\n        n_edge = int(n_bins * (edge_pct / 100.0))\n        n_fit\
-      \ = n_bins - 2 * n_edge\n        if n_fit < 2:\n            print(\n                f\"Stage 4 phase fit warning: edge\
-      \ exclusion leaves {n_fit} bins; using full spectrum.\",\n                flush=True,\n            )\n            n_edge\
-      \ = 0\n\n        if n_edge > 0:\n            return c01[n_edge:-n_edge], self._f[n_edge:-n_edge]\n        return c01,\
-      \ self._f\n\n    def work(self, input_items, output_items):\n        spectra = input_items[0]\n        delay_ns = output_items[0]\n\
-      \        slope_deg_per_mhz = output_items[1]\n        fit_rms_deg = output_items[2]\n\n        for i, c01 in enumerate(spectra):\n\
-      \            c01_fit, f_fit = self._fit_vectors(c01)\n            phase = np.angle(c01_fit)\n            phase_unwrapped\
-      \ = np.unwrap(phase).astype(np.float64)\n            slope, intercept = np.polyfit(f_fit, phase_unwrapped, 1)\n    \
-      \        phase_fit = slope * f_fit + intercept\n            residual = phase_unwrapped - phase_fit\n\n            delay_ns[i]\
-      \ = np.float32((slope / (2.0 * np.pi)) * 1e9)\n            slope_deg_per_mhz[i] = np.float32(slope * (180.0 / np.pi)\
-      \ * 1e6)\n            fit_rms_deg[i] = np.float32(\n                np.sqrt(np.mean(residual * residual)) * (180.0 /\
-      \ np.pi)\n            )\n\n        return len(spectra)\n"
+    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"Stage 7 corrected phase-slope / differential-delay diagnostic.\n\n\
+      \    Fits unwrapped C01 phase against increasing B210 baseband/IF\n    frequency.\
+      \ Cross-spectrum convention is C01 = X0 * conj(X1).\n    Provisional sign convention:\
+      \ positive RX1 delay relative to RX0\n    should produce positive phase slope\
+      \ versus increasing IF/baseband\n    frequency and positive reported differential\
+      \ delay.\n    \"\"\"\n\n    def __init__(self, fft_size=4096, samp_rate=30.72e6,\
+      \ phase_fit_edge_exclude_pct=7.5):\n        self.fft_size = int(fft_size)\n\
+      \        self.samp_rate = float(samp_rate)\n        self.phase_fit_edge_exclude_pct\
+      \ = float(phase_fit_edge_exclude_pct)\n        gr.sync_block.__init__(\n   \
+      \         self,\n            name='Corrected Phase Slope / Delay Estimator',\n\
+      \            in_sig=[(np.complex64, self.fft_size)],\n            out_sig=[np.float32,\
+      \ np.float32, np.float32],\n        )\n        self._f = (\n            (np.arange(self.fft_size,\
+      \ dtype=np.float64) - self.fft_size / 2.0)\n            * self.samp_rate\n \
+      \           / self.fft_size\n        )\n\n    def set_phase_fit_edge_exclude_pct(self,\
+      \ value):\n        self.phase_fit_edge_exclude_pct = float(value)\n\n    def\
+      \ _fit_vectors(self, c01):\n        edge_pct = float(self.phase_fit_edge_exclude_pct)\n\
+      \        if edge_pct < 0.0:\n            print(\n                f\"Stage 4\
+      \ phase fit warning: edge exclusion {edge_pct}% is below 0%; using 0%.\",\n\
+      \                flush=True,\n            )\n            edge_pct = 0.0\n  \
+      \      elif edge_pct >= 50.0:\n            print(\n                f\"Stage\
+      \ 4 phase fit warning: edge exclusion {edge_pct}% is >= 50%; using 49%.\",\n\
+      \                flush=True,\n            )\n            edge_pct = 49.0\n\n\
+      \        n_bins = len(c01)\n        n_edge = int(n_bins * (edge_pct / 100.0))\n\
+      \        n_fit = n_bins - 2 * n_edge\n        if n_fit < 2:\n            print(\n\
+      \                f\"Stage 4 phase fit warning: edge exclusion leaves {n_fit}\
+      \ bins; using full spectrum.\",\n                flush=True,\n            )\n\
+      \            n_edge = 0\n\n        if n_edge > 0:\n            return c01[n_edge:-n_edge],\
+      \ self._f[n_edge:-n_edge]\n        return c01, self._f\n\n    def work(self,\
+      \ input_items, output_items):\n        spectra = input_items[0]\n        delay_ns\
+      \ = output_items[0]\n        slope_deg_per_mhz = output_items[1]\n        fit_rms_deg\
+      \ = output_items[2]\n\n        for i, c01 in enumerate(spectra):\n         \
+      \   c01_fit, f_fit = self._fit_vectors(c01)\n            phase = np.angle(c01_fit)\n\
+      \            phase_unwrapped = np.unwrap(phase).astype(np.float64)\n       \
+      \     slope, intercept = np.polyfit(f_fit, phase_unwrapped, 1)\n           \
+      \ phase_fit = slope * f_fit + intercept\n            residual = phase_unwrapped\
+      \ - phase_fit\n\n            delay_ns[i] = np.float32((slope / (2.0 * np.pi))\
+      \ * 1e9)\n            slope_deg_per_mhz[i] = np.float32(slope * (180.0 / np.pi)\
+      \ * 1e6)\n            fit_rms_deg[i] = np.float32(\n                np.sqrt(np.mean(residual\
+      \ * residual)) * (180.0 / np.pi)\n            )\n\n        return len(spectra)\n"
     affinity: ''
     alias: ''
-    comment: Stage 7 corrected C01 diagnostic. Same fit convention and edge exclusion as raw Stage 4 estimator.
+    comment: Stage 7 corrected C01 diagnostic. Same fit convention and edge exclusion
+      as raw Stage 4 estimator.
     fft_size: fft_size
     maxoutbuf: '0'
     minoutbuf: '0'
     phase_fit_edge_exclude_pct: phase_fit_edge_exclude_pct
     samp_rate: samp_rate
   states:
-    _io_cache: ('Corrected Phase Slope / Delay Estimator', 'blk', [('fft_size', '4096'), ('samp_rate', '30720000.0'), ('phase_fit_edge_exclude_pct',
-      '7.5')], [('0', 'complex', 4096)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1)], 'Stage 7 corrected phase-slope
-      / differential-delay diagnostic.', ['fft_size', 'samp_rate', 'phase_fit_edge_exclude_pct'])
+    _io_cache: ('Corrected Phase Slope / Delay Estimator', 'blk', [('fft_size', '4096'),
+      ('samp_rate', '30720000.0'), ('phase_fit_edge_exclude_pct', '7.5')], [('0',
+      'complex', 4096)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float', 1)],
+      'Stage 7 corrected phase-slope / differential-delay diagnostic.', ['fft_size',
+      'samp_rate', 'phase_fit_edge_exclude_pct'])
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -1824,35 +1930,46 @@ blocks:
 - name: broadband_visibility_combiner
   id: epy_block
   parameters:
-    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 8 broadband\
-      \ complex visibility combiner.\n\n    Operates on Stage-7 delay-corrected C01 spectra and outputs one complex\n    unstopped\
-      \ visibility per accumulated spectrum. The combiner performs a\n    coherent complex mean over the retained FFT bins.\n\
-      \    \"\"\"\n\n    def __init__(self, fft_size=4096, visibility_edge_exclude_pct=20.0):\n        self.fft_size = int(fft_size)\n\
-      \        self.visibility_edge_exclude_pct = float(visibility_edge_exclude_pct)\n        gr.sync_block.__init__(\n  \
-      \          self,\n            name='Broadband Visibility Combiner',\n            in_sig=[(np.complex64, self.fft_size)],\n\
-      \            out_sig=[np.complex64],\n        )\n\n    def set_visibility_edge_exclude_pct(self, value):\n        self.visibility_edge_exclude_pct\
-      \ = float(value)\n\n    def _fit_slice(self):\n        edge_pct = float(self.visibility_edge_exclude_pct)\n        if\
-      \ edge_pct < 0.0:\n            print(\n                f\"Stage 8 visibility warning: edge exclusion {edge_pct}% is\
-      \ below 0%; using 0%.\",\n                flush=True,\n            )\n            edge_pct = 0.0\n        elif edge_pct\
-      \ >= 50.0:\n            print(\n                f\"Stage 8 visibility warning: edge exclusion {edge_pct}% is >= 50%;\
-      \ using 49%.\",\n                flush=True,\n            )\n            edge_pct = 49.0\n\n        n_edge = int(self.fft_size\
-      \ * (edge_pct / 100.0))\n        n_used = self.fft_size - 2 * n_edge\n        if n_used < 2:\n            print(\n \
-      \               f\"Stage 8 visibility warning: edge exclusion leaves {n_used} bins; using full spectrum.\",\n      \
-      \          flush=True,\n            )\n            n_edge = 0\n\n        if n_edge > 0:\n            return slice(n_edge,\
-      \ self.fft_size - n_edge)\n        return slice(None)\n\n    def work(self, input_items, output_items):\n        spectra\
-      \ = input_items[0]\n        visibility = output_items[0]\n        use_bins = self._fit_slice()\n\n        for i, spectrum\
-      \ in enumerate(spectra):\n            visibility[i] = np.complex64(np.mean(spectrum[use_bins], dtype=np.complex128))\n\
-      \n        return len(spectra)\n"
+    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"Stage 8 broadband complex visibility combiner.\n\n    Operates on\
+      \ Stage-7 delay-corrected C01 spectra and outputs one complex\n    unstopped\
+      \ visibility per accumulated spectrum. The combiner performs a\n    coherent\
+      \ complex mean over the retained FFT bins.\n    \"\"\"\n\n    def __init__(self,\
+      \ fft_size=4096, visibility_edge_exclude_pct=20.0):\n        self.fft_size =\
+      \ int(fft_size)\n        self.visibility_edge_exclude_pct = float(visibility_edge_exclude_pct)\n\
+      \        gr.sync_block.__init__(\n            self,\n            name='Broadband\
+      \ Visibility Combiner',\n            in_sig=[(np.complex64, self.fft_size)],\n\
+      \            out_sig=[np.complex64],\n        )\n\n    def set_visibility_edge_exclude_pct(self,\
+      \ value):\n        self.visibility_edge_exclude_pct = float(value)\n\n    def\
+      \ _fit_slice(self):\n        edge_pct = float(self.visibility_edge_exclude_pct)\n\
+      \        if edge_pct < 0.0:\n            print(\n                f\"Stage 8\
+      \ visibility warning: edge exclusion {edge_pct}% is below 0%; using 0%.\",\n\
+      \                flush=True,\n            )\n            edge_pct = 0.0\n  \
+      \      elif edge_pct >= 50.0:\n            print(\n                f\"Stage\
+      \ 8 visibility warning: edge exclusion {edge_pct}% is >= 50%; using 49%.\",\n\
+      \                flush=True,\n            )\n            edge_pct = 49.0\n\n\
+      \        n_edge = int(self.fft_size * (edge_pct / 100.0))\n        n_used =\
+      \ self.fft_size - 2 * n_edge\n        if n_used < 2:\n            print(\n \
+      \               f\"Stage 8 visibility warning: edge exclusion leaves {n_used}\
+      \ bins; using full spectrum.\",\n                flush=True,\n            )\n\
+      \            n_edge = 0\n\n        if n_edge > 0:\n            return slice(n_edge,\
+      \ self.fft_size - n_edge)\n        return slice(None)\n\n    def work(self,\
+      \ input_items, output_items):\n        spectra = input_items[0]\n        visibility\
+      \ = output_items[0]\n        use_bins = self._fit_slice()\n\n        for i,\
+      \ spectrum in enumerate(spectra):\n            visibility[i] = np.complex64(np.mean(spectrum[use_bins],\
+      \ dtype=np.complex128))\n\n        return len(spectra)\n"
     affinity: ''
     alias: ''
-    comment: 'Stage 8 only: coherent complex mean over usable Stage-7 corrected frequency bins. No temporal integration.'
+    comment: 'Stage 8 only: coherent complex mean over usable Stage-7 corrected frequency
+      bins. No temporal integration.'
     fft_size: fft_size
     maxoutbuf: '0'
     minoutbuf: '0'
     visibility_edge_exclude_pct: visibility_edge_exclude_pct
   states:
-    _io_cache: ('Broadband Visibility Combiner', 'blk', [('fft_size', '4096'), ('visibility_edge_exclude_pct', '20.0')], [('0',
-      'complex', 4096)], [('0', 'complex', 1)], 'Stage 8 broadband complex visibility combiner.', ['fft_size', 'visibility_edge_exclude_pct'])
+    _io_cache: ('Broadband Visibility Combiner', 'blk', [('fft_size', '4096'), ('visibility_edge_exclude_pct',
+      '20.0')], [('0', 'complex', 4096)], [('0', 'complex', 1)], 'Stage 8 broadband
+      complex visibility combiner.', ['fft_size', 'visibility_edge_exclude_pct'])
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -1865,36 +1982,47 @@ blocks:
 - name: fringe_stop_corrector
   id: epy_block
   parameters:
-    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n    \"\"\"Stage 8 centre-frequency\
-      \ geometric fringe-stop corrector.\n\n    Uses Stage-6 tau_g, not RX1-RX0 arrival delay. The default sign is\n    exp(-j*2*pi*sky_cf*tau_g),\
-      \ matching the project geometric phase convention.\n    \"\"\"\n\n    def __init__(self, sky_cf=4.800e9, fringe_stop_enable=True,\
-      \ fringe_stop_sign=-1):\n        self.sky_cf = float(sky_cf)\n        self.fringe_stop_enable = self._as_bool(fringe_stop_enable)\n\
-      \        self.fringe_stop_sign = int(fringe_stop_sign)\n        gr.sync_block.__init__(\n            self,\n       \
-      \     name='Fringe Stop Corrector',\n            in_sig=[np.complex64, np.float32],\n            out_sig=[np.complex64],\n\
-      \        )\n\n    @staticmethod\n    def _as_bool(value):\n        if isinstance(value, str):\n            return value.strip().lower()\
-      \ in (\"1\", \"true\", \"yes\", \"on\", \"enable\", \"enabled\")\n        return bool(value)\n\n    def set_sky_cf(self,\
-      \ value):\n        self.sky_cf = float(value)\n\n    def set_fringe_stop_enable(self, value):\n        self.fringe_stop_enable\
-      \ = self._as_bool(value)\n\n    def set_fringe_stop_sign(self, value):\n        self.fringe_stop_sign = int(value)\n\
-      \n    def work(self, input_items, output_items):\n        unstopped = input_items[0]\n        tau_g_ns = input_items[1]\n\
-      \        stopped = output_items[0]\n        nout = len(unstopped)\n\n        if not self.fringe_stop_enable:\n     \
-      \       stopped[:nout] = unstopped\n            return nout\n\n        sky_cf = float(self.sky_cf)\n        sign = int(self.fringe_stop_sign)\n\
-      \        if sign not in (-1, 1) or not np.isfinite(sky_cf):\n            stopped[:nout] = unstopped\n            return\
-      \ nout\n\n        for i in range(nout):\n            tau_ns = float(tau_g_ns[i])\n            if not np.isfinite(tau_ns):\n\
-      \                stopped[i] = unstopped[i]\n                continue\n\n            tau_s = tau_ns * 1e-9\n        \
-      \    rotation = np.exp(1j * sign * 2.0 * np.pi * sky_cf * tau_s)\n            stopped[i] = np.complex64(unstopped[i]\
+    _source_code: "import numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.sync_block):\n\
+      \    \"\"\"Stage 8 centre-frequency geometric fringe-stop corrector.\n\n   \
+      \ Uses Stage-6 tau_g, not RX1-RX0 arrival delay. The default sign is\n    exp(-j*2*pi*sky_cf*tau_g),\
+      \ matching the project geometric phase convention.\n    \"\"\"\n\n    def __init__(self,\
+      \ sky_cf=4.800e9, fringe_stop_enable=True, fringe_stop_sign=-1):\n        self.sky_cf\
+      \ = float(sky_cf)\n        self.fringe_stop_enable = self._as_bool(fringe_stop_enable)\n\
+      \        self.fringe_stop_sign = int(fringe_stop_sign)\n        gr.sync_block.__init__(\n\
+      \            self,\n            name='Fringe Stop Corrector',\n            in_sig=[np.complex64,\
+      \ np.float32],\n            out_sig=[np.complex64],\n        )\n\n    @staticmethod\n\
+      \    def _as_bool(value):\n        if isinstance(value, str):\n            return\
+      \ value.strip().lower() in (\"1\", \"true\", \"yes\", \"on\", \"enable\", \"\
+      enabled\")\n        return bool(value)\n\n    def set_sky_cf(self, value):\n\
+      \        self.sky_cf = float(value)\n\n    def set_fringe_stop_enable(self,\
+      \ value):\n        self.fringe_stop_enable = self._as_bool(value)\n\n    def\
+      \ set_fringe_stop_sign(self, value):\n        self.fringe_stop_sign = int(value)\n\
+      \n    def work(self, input_items, output_items):\n        unstopped = input_items[0]\n\
+      \        tau_g_ns = input_items[1]\n        stopped = output_items[0]\n    \
+      \    nout = len(unstopped)\n\n        if not self.fringe_stop_enable:\n    \
+      \        stopped[:nout] = unstopped\n            return nout\n\n        sky_cf\
+      \ = float(self.sky_cf)\n        sign = int(self.fringe_stop_sign)\n        if\
+      \ sign not in (-1, 1) or not np.isfinite(sky_cf):\n            stopped[:nout]\
+      \ = unstopped\n            return nout\n\n        for i in range(nout):\n  \
+      \          tau_ns = float(tau_g_ns[i])\n            if not np.isfinite(tau_ns):\n\
+      \                stopped[i] = unstopped[i]\n                continue\n\n   \
+      \         tau_s = tau_ns * 1e-9\n            rotation = np.exp(1j * sign * 2.0\
+      \ * np.pi * sky_cf * tau_s)\n            stopped[i] = np.complex64(unstopped[i]\
       \ * rotation)\n\n        return nout\n"
     affinity: ''
     alias: ''
-    comment: 'Stage 8 only: centre-frequency geometric fringe stopping using Stage-6 tau_g output 3.'
+    comment: 'Stage 8 only: centre-frequency geometric fringe stopping using Stage-6
+      tau_g output 3.'
     fringe_stop_enable: fringe_stop_enable
     fringe_stop_sign: fringe_stop_sign
     maxoutbuf: '0'
     minoutbuf: '0'
     sky_cf: sky_cf
   states:
-    _io_cache: ('Fringe Stop Corrector', 'blk', [('sky_cf', '4800000000.0'), ('fringe_stop_enable', 'True'), ('fringe_stop_sign',
-      '-1')], [('0', 'complex', 1), ('1', 'float', 1)], [('0', 'complex', 1)], 'Stage 8 centre-frequency geometric fringe-stop
-      corrector.', ['sky_cf', 'fringe_stop_enable', 'fringe_stop_sign'])
+    _io_cache: ('Fringe Stop Corrector', 'blk', [('sky_cf', '4800000000.0'), ('fringe_stop_enable',
+      'True'), ('fringe_stop_sign', '-1')], [('0', 'complex', 1), ('1', 'float', 1)],
+      [('0', 'complex', 1)], 'Stage 8 centre-frequency geometric fringe-stop corrector.',
+      ['sky_cf', 'fringe_stop_enable', 'fringe_stop_sign'])
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -1969,7 +2097,8 @@ blocks:
     color7: '"yellow"'
     color8: '"dark red"'
     color9: '"dark green"'
-    comment: Stage 8 low-rate complex visibility I/Q comparison. Sample rate is visibility_rate, not RF sample rate.
+    comment: Stage 8 low-rate complex visibility I/Q comparison. Sample rate is visibility_rate,
+      not RF sample rate.
     ctrlpanel: 'False'
     entags: 'True'
     grid: 'True'
@@ -2329,54 +2458,75 @@ blocks:
 - name: coherent_visibility_integrator
   id: epy_block
   parameters:
-    _source_code: "import math\nimport threading\n\nimport numpy as np\nfrom gnuradio import gr\n\n\nclass blk(gr.basic_block):\n\
-      \    \"\"\"Stage 9 non-overlapping coherent visibility integrator.\n\n    Consumes native Stage-8 V_stopped samples\
-      \ and emits one complex mean for\n    each complete integration window. Runtime integration changes reset the\n    partial\
-      \ window so samples from different integration lengths are not mixed.\n    \"\"\"\n\n    def __init__(self, visibility_rate=10.0,\
-      \ integration_time_s=1.0):\n        self.visibility_rate = float(visibility_rate)\n        self.integration_time_s =\
-      \ float(integration_time_s)\n        self._lock = threading.RLock()\n        self._window = []\n        self._n_int\
-      \ = self._calc_n_int()\n        self._warned_quantization = False\n        gr.basic_block.__init__(\n            self,\n\
-      \            name='Coherent Visibility Integrator',\n            in_sig=[np.complex64],\n            out_sig=[np.complex64,\
-      \ np.float32, np.float32, np.float32],\n        )\n\n    @staticmethod\n    def _finite_complex(value):\n        return\
-      \ np.isfinite(value.real) and np.isfinite(value.imag)\n\n    @staticmethod\n    def _nearest_int(value):\n        return\
-      \ int(math.floor(float(value) + 0.5))\n\n    def _calc_n_int(self):\n        rate = float(self.visibility_rate)\n  \
-      \      integ = float(self.integration_time_s)\n        if not np.isfinite(rate) or rate <= 0.0:\n            rate =\
-      \ 1.0\n        if not np.isfinite(integ) or integ <= 0.0:\n            integ = 0.1\n        return max(1, self._nearest_int(integ\
-      \ * rate))\n\n    def _effective_integration_s(self):\n        rate = float(self.visibility_rate)\n        if not np.isfinite(rate)\
-      \ or rate <= 0.0:\n            rate = 1.0\n        return float(self._n_int) / rate\n\n    def _reset_locked(self):\n\
-      \        self._window = []\n        self._n_int = self._calc_n_int()\n        self._warned_quantization = False\n\n\
-      \    def _warn_quantization_locked(self):\n        requested = float(self.integration_time_s)\n        effective = self._effective_integration_s()\n\
-      \        if (\n            not self._warned_quantization\n            and np.isfinite(requested)\n            and abs(requested\
-      \ - effective) > 1e-6\n        ):\n            print(\n                f\"Stage 9 integration warning: requested {requested:.6g}\
-      \ s, effective {effective:.6g} s \"\n                f\"from {self._n_int} native visibility samples.\",\n         \
-      \       flush=True,\n            )\n            self._warned_quantization = True\n\n    def set_visibility_rate(self,\
-      \ value):\n        with self._lock:\n            self.visibility_rate = float(value)\n            self._reset_locked()\n\
-      \n    def set_integration_time_s(self, value):\n        with self._lock:\n            self.integration_time_s = float(value)\n\
-      \            self._reset_locked()\n\n    def forecast(self, noutput_items, ninputs):\n        return [1] * ninputs\n\
-      \n    def general_work(self, input_items, output_items):\n        samples = input_items[0]\n        vis_out = output_items[0]\n\
-      \        coherence_out = output_items[1]\n        effective_out = output_items[2]\n        n_int_out = output_items[3]\n\
-      \n        produced = 0\n        consumed = 0\n        out_capacity = len(vis_out)\n\n        with self._lock:\n    \
-      \        n_int = self._calc_n_int()\n            if n_int != self._n_int:\n                self._reset_locked()\n  \
-      \              n_int = self._n_int\n            self._warn_quantization_locked()\n\n            for sample in samples:\n\
-      \                if produced >= out_capacity:\n                    break\n\n                consumed += 1\n        \
-      \        if not self._finite_complex(sample):\n                    self._window = []\n                    continue\n\
-      \n                self._window.append(np.complex64(sample))\n                if len(self._window) < n_int:\n       \
-      \             continue\n\n                window = np.asarray(self._window, dtype=np.complex64)\n                total\
-      \ = np.sum(window, dtype=np.complex128)\n                denom = np.sum(np.abs(window), dtype=np.float64)\n        \
-      \        coherence = 100.0 * abs(total) / denom if denom > 0.0 else np.nan\n\n                vis_out[produced] = np.complex64(total\
-      \ / n_int)\n                coherence_out[produced] = np.float32(coherence)\n                effective_out[produced]\
-      \ = np.float32(self._effective_integration_s())\n                n_int_out[produced] = np.float32(n_int)\n         \
-      \       produced += 1\n                self._window = []\n\n        self.consume(0, consumed)\n        return produced\n"
+    _source_code: "import math\nimport threading\n\nimport numpy as np\nfrom gnuradio\
+      \ import gr\n\n\nclass blk(gr.basic_block):\n    \"\"\"Stage 9 non-overlapping\
+      \ coherent visibility integrator.\n\n    Consumes native Stage-8 V_stopped samples\
+      \ and emits one complex mean for\n    each complete integration window. Runtime\
+      \ integration changes reset the\n    partial window so samples from different\
+      \ integration lengths are not mixed.\n    \"\"\"\n\n    def __init__(self, visibility_rate=10.0,\
+      \ integration_time_s=1.0):\n        self.visibility_rate = float(visibility_rate)\n\
+      \        self.integration_time_s = float(integration_time_s)\n        self._lock\
+      \ = threading.RLock()\n        self._window = []\n        self._n_int = self._calc_n_int()\n\
+      \        self._warned_quantization = False\n        gr.basic_block.__init__(\n\
+      \            self,\n            name='Coherent Visibility Integrator',\n   \
+      \         in_sig=[np.complex64],\n            out_sig=[np.complex64, np.float32,\
+      \ np.float32, np.float32],\n        )\n\n    @staticmethod\n    def _finite_complex(value):\n\
+      \        return np.isfinite(value.real) and np.isfinite(value.imag)\n\n    @staticmethod\n\
+      \    def _nearest_int(value):\n        return int(math.floor(float(value) +\
+      \ 0.5))\n\n    def _calc_n_int(self):\n        rate = float(self.visibility_rate)\n\
+      \        integ = float(self.integration_time_s)\n        if not np.isfinite(rate)\
+      \ or rate <= 0.0:\n            rate = 1.0\n        if not np.isfinite(integ)\
+      \ or integ <= 0.0:\n            integ = 0.1\n        return max(1, self._nearest_int(integ\
+      \ * rate))\n\n    def _effective_integration_s(self):\n        rate = float(self.visibility_rate)\n\
+      \        if not np.isfinite(rate) or rate <= 0.0:\n            rate = 1.0\n\
+      \        return float(self._n_int) / rate\n\n    def _reset_locked(self):\n\
+      \        self._window = []\n        self._n_int = self._calc_n_int()\n     \
+      \   self._warned_quantization = False\n\n    def _warn_quantization_locked(self):\n\
+      \        requested = float(self.integration_time_s)\n        effective = self._effective_integration_s()\n\
+      \        if (\n            not self._warned_quantization\n            and np.isfinite(requested)\n\
+      \            and abs(requested - effective) > 1e-6\n        ):\n           \
+      \ print(\n                f\"Stage 9 integration warning: requested {requested:.6g}\
+      \ s, effective {effective:.6g} s \"\n                f\"from {self._n_int} native\
+      \ visibility samples.\",\n                flush=True,\n            )\n     \
+      \       self._warned_quantization = True\n\n    def set_visibility_rate(self,\
+      \ value):\n        with self._lock:\n            self.visibility_rate = float(value)\n\
+      \            self._reset_locked()\n\n    def set_integration_time_s(self, value):\n\
+      \        with self._lock:\n            self.integration_time_s = float(value)\n\
+      \            self._reset_locked()\n\n    def forecast(self, noutput_items, ninputs):\n\
+      \        return [1] * ninputs\n\n    def general_work(self, input_items, output_items):\n\
+      \        samples = input_items[0]\n        vis_out = output_items[0]\n     \
+      \   coherence_out = output_items[1]\n        effective_out = output_items[2]\n\
+      \        n_int_out = output_items[3]\n\n        produced = 0\n        consumed\
+      \ = 0\n        out_capacity = len(vis_out)\n\n        with self._lock:\n   \
+      \         n_int = self._calc_n_int()\n            if n_int != self._n_int:\n\
+      \                self._reset_locked()\n                n_int = self._n_int\n\
+      \            self._warn_quantization_locked()\n\n            for sample in samples:\n\
+      \                if produced >= out_capacity:\n                    break\n\n\
+      \                consumed += 1\n                if not self._finite_complex(sample):\n\
+      \                    self._window = []\n                    continue\n\n   \
+      \             self._window.append(np.complex64(sample))\n                if\
+      \ len(self._window) < n_int:\n                    continue\n\n             \
+      \   window = np.asarray(self._window, dtype=np.complex64)\n                total\
+      \ = np.sum(window, dtype=np.complex128)\n                denom = np.sum(np.abs(window),\
+      \ dtype=np.float64)\n                coherence = 100.0 * abs(total) / denom\
+      \ if denom > 0.0 else np.nan\n\n                vis_out[produced] = np.complex64(total\
+      \ / n_int)\n                coherence_out[produced] = np.float32(coherence)\n\
+      \                effective_out[produced] = np.float32(self._effective_integration_s())\n\
+      \                n_int_out[produced] = np.float32(n_int)\n                produced\
+      \ += 1\n                self._window = []\n\n        self.consume(0, consumed)\n\
+      \        return produced\n"
     affinity: ''
     alias: ''
-    comment: 'Stage 9 only: variable-rate non-overlapping coherent integration of native Stage-8 V_stopped.'
+    comment: 'Stage 9 only: variable-rate non-overlapping coherent integration of
+      native Stage-8 V_stopped.'
     integration_time_s: integration_time_s
     maxoutbuf: '0'
     minoutbuf: '0'
     visibility_rate: visibility_rate
   states:
-    _io_cache: ('Coherent Visibility Integrator', 'blk', [('visibility_rate', '10.0'), ('integration_time_s', '1.0')], [('0',
-      'complex', 1)], [('0', 'complex', 1), ('1', 'float', 1), ('2', 'float', 1), ('3', 'float', 1)], 'Stage 9 non-overlapping
+    _io_cache: ('Coherent Visibility Integrator', 'blk', [('visibility_rate', '10.0'),
+      ('integration_time_s', '1.0')], [('0', 'complex', 1)], [('0', 'complex', 1),
+      ('1', 'float', 1), ('2', 'float', 1), ('3', 'float', 1)], 'Stage 9 non-overlapping
       coherent visibility integrator.', ['visibility_rate', 'integration_time_s'])
     bus_sink: false
     bus_source: false
@@ -2390,76 +2540,106 @@ blocks:
 - name: phase_stability_advisor
   id: epy_block
   parameters:
-    _source_code: "import math\nimport threading\n\nimport numpy as np\nfrom gnuradio import gr\n\n\nMAX_INTEGRATION_S = 60.0\n\
-      \n\nclass blk(gr.sync_block):\n    \"\"\"Stage 9 residual phase-rate and coherence advisor.\n\n    Measures native Stage-8\
-      \ V_stopped phase history. Outputs are advisory only\n    and must not control integration time, fringe-stop sign, geometry,\
-      \ or\n    antenna tracking.\n    \"\"\"\n\n    def __init__(\n        self,\n        visibility_rate=10.0,\n       \
-      \ integration_time_s=1.0,\n        phase_rate_fit_window_s=60.0,\n        coherence_target_pct=95.0,\n    ):\n     \
-      \   self.visibility_rate = float(visibility_rate)\n        self.integration_time_s = float(integration_time_s)\n   \
-      \     self.phase_rate_fit_window_s = float(phase_rate_fit_window_s)\n        self.coherence_target_pct = float(coherence_target_pct)\n\
-      \        self._history = []\n        self._warned_quantization = False\n        self._lock = threading.RLock()\n   \
-      \     gr.sync_block.__init__(\n            self,\n            name='Phase Stability Advisor',\n            in_sig=[np.complex64],\n\
-      \            out_sig=[\n                np.float32,\n                np.float32,\n                np.float32,\n    \
-      \            np.float32,\n                np.float32,\n                np.float32,\n                np.float32,\n  \
-      \          ],\n        )\n\n    @staticmethod\n    def _finite_complex(value):\n        return np.isfinite(value.real)\
-      \ and np.isfinite(value.imag)\n\n    @staticmethod\n    def _nearest_int(value):\n        return int(math.floor(float(value)\
-      \ + 0.5))\n\n    def _visibility_rate(self):\n        rate = float(self.visibility_rate)\n        return rate if np.isfinite(rate)\
-      \ and rate > 0.0 else 1.0\n\n    def _n_int(self):\n        integ = float(self.integration_time_s)\n        if not np.isfinite(integ)\
-      \ or integ <= 0.0:\n            integ = 0.1\n        return max(1, self._nearest_int(integ * self._visibility_rate()))\n\
-      \n    def _effective_integration_s(self):\n        return float(self._n_int()) / self._visibility_rate()\n\n    def\
-      \ _history_len(self):\n        fit_window = float(self.phase_rate_fit_window_s)\n        if not np.isfinite(fit_window)\
-      \ or fit_window <= 0.0:\n            fit_window = 60.0\n        return max(3, self._nearest_int(fit_window * self._visibility_rate()))\n\
-      \n    def _coherence_for_rate(self, omega_rad_s, integration_s):\n        x = abs(float(omega_rad_s) * float(integration_s)\
-      \ / 2.0)\n        if x < 1e-9:\n            return 1.0\n        return abs(math.sin(x) / x)\n\n    def _solve_coherence_x(self,\
-      \ target_fraction):\n        target = min(max(float(target_fraction), 1e-6), 0.999999)\n        lo = 0.0\n        hi\
-      \ = math.pi\n        for _ in range(80):\n            mid = 0.5 * (lo + hi)\n            value = math.sin(mid) / mid\
-      \ if mid != 0.0 else 1.0\n            if value > target:\n                lo = mid\n            else:\n            \
-      \    hi = mid\n        return 0.5 * (lo + hi)\n\n    def _recommended_max_s(self, omega_rad_s):\n        omega = abs(float(omega_rad_s))\n\
-      \        if omega < 1e-12:\n            return MAX_INTEGRATION_S\n        target = float(self.coherence_target_pct)\
-      \ / 100.0\n        x = self._solve_coherence_x(target)\n        return min(MAX_INTEGRATION_S, 2.0 * x / omega)\n\n \
-      \   def set_visibility_rate(self, value):\n        with self._lock:\n            self.visibility_rate = float(value)\n\
-      \            self._history = []\n            self._warned_quantization = False\n\n    def set_integration_time_s(self,\
-      \ value):\n        with self._lock:\n            self.integration_time_s = float(value)\n            self._warned_quantization\
-      \ = False\n\n    def set_phase_rate_fit_window_s(self, value):\n        with self._lock:\n            self.phase_rate_fit_window_s\
-      \ = float(value)\n            self._history = []\n\n    def set_coherence_target_pct(self, value):\n        with self._lock:\n\
-      \            self.coherence_target_pct = float(value)\n\n    def _estimate_locked(self):\n        m = self._history_len()\n\
-      \        if len(self._history) < m:\n            return (np.nan, np.nan, np.nan, np.nan)\n\n        values = np.asarray(self._history[-m:],\
-      \ dtype=np.complex64)\n        phase = np.unwrap(np.angle(values)).astype(np.float64)\n        t = np.arange(m, dtype=np.float64)\
-      \ / self._visibility_rate()\n        t -= np.mean(t)\n        omega, intercept = np.polyfit(t, phase, 1)\n        residual\
-      \ = phase - (omega * t + intercept)\n        rms_deg = np.sqrt(np.mean(residual * residual)) * 180.0 / np.pi\n     \
-      \   rate_deg_s = omega * 180.0 / np.pi\n        rate_coherence_pct = 100.0 * self._coherence_for_rate(omega, self._effective_integration_s())\n\
-      \        recommended_s = self._recommended_max_s(omega)\n        return (rate_deg_s, rms_deg, rate_coherence_pct, recommended_s)\n\
-      \n    def _warn_quantization_locked(self):\n        requested = float(self.integration_time_s)\n        effective =\
-      \ self._effective_integration_s()\n        if (\n            not self._warned_quantization\n            and np.isfinite(requested)\n\
-      \            and abs(requested - effective) > 1e-6\n        ):\n            print(\n                f\"Stage 9 advisor\
-      \ warning: requested {requested:.6g} s, effective {effective:.6g} s \"\n                f\"from {self._n_int()} native\
-      \ visibility samples.\",\n                flush=True,\n            )\n            self._warned_quantization = True\n\
-      \n    def work(self, input_items, output_items):\n        samples = input_items[0]\n        rate_out = output_items[0]\n\
-      \        rms_out = output_items[1]\n        rate_coherence_out = output_items[2]\n        recommended_out = output_items[3]\n\
-      \        requested_out = output_items[4]\n        effective_out = output_items[5]\n        n_int_out = output_items[6]\n\
-      \n        with self._lock:\n            self._warn_quantization_locked()\n            for i, sample in enumerate(samples):\n\
-      \                if self._finite_complex(sample) and abs(sample) > 0.0:\n                    self._history.append(np.complex64(sample))\n\
-      \                    m = self._history_len()\n                    if len(self._history) > m:\n                     \
-      \   self._history = self._history[-m:]\n                else:\n                    self._history = []\n\n          \
-      \      rate_deg_s, rms_deg, rate_coherence_pct, recommended_s = self._estimate_locked()\n                rate_out[i]\
-      \ = np.float32(rate_deg_s)\n                rms_out[i] = np.float32(rms_deg)\n                rate_coherence_out[i]\
-      \ = np.float32(rate_coherence_pct)\n                recommended_out[i] = np.float32(recommended_s)\n               \
-      \ requested_out[i] = np.float32(self.integration_time_s)\n                effective_out[i] = np.float32(self._effective_integration_s())\n\
-      \                n_int_out[i] = np.float32(self._n_int())\n\n        return len(samples)\n"
+    _source_code: "import math\nimport threading\n\nimport numpy as np\nfrom gnuradio\
+      \ import gr\n\n\nMAX_INTEGRATION_S = 60.0\n\n\nclass blk(gr.sync_block):\n \
+      \   \"\"\"Stage 9 residual phase-rate and coherence advisor.\n\n    Measures\
+      \ native Stage-8 V_stopped phase history. Outputs are advisory only\n    and\
+      \ must not control integration time, fringe-stop sign, geometry, or\n    antenna\
+      \ tracking.\n    \"\"\"\n\n    def __init__(\n        self,\n        visibility_rate=10.0,\n\
+      \        integration_time_s=1.0,\n        phase_rate_fit_window_s=60.0,\n  \
+      \      coherence_target_pct=95.0,\n    ):\n        self.visibility_rate = float(visibility_rate)\n\
+      \        self.integration_time_s = float(integration_time_s)\n        self.phase_rate_fit_window_s\
+      \ = float(phase_rate_fit_window_s)\n        self.coherence_target_pct = float(coherence_target_pct)\n\
+      \        self._history = []\n        self._warned_quantization = False\n   \
+      \     self._lock = threading.RLock()\n        gr.sync_block.__init__(\n    \
+      \        self,\n            name='Phase Stability Advisor',\n            in_sig=[np.complex64],\n\
+      \            out_sig=[\n                np.float32,\n                np.float32,\n\
+      \                np.float32,\n                np.float32,\n                np.float32,\n\
+      \                np.float32,\n                np.float32,\n            ],\n\
+      \        )\n\n    @staticmethod\n    def _finite_complex(value):\n        return\
+      \ np.isfinite(value.real) and np.isfinite(value.imag)\n\n    @staticmethod\n\
+      \    def _nearest_int(value):\n        return int(math.floor(float(value) +\
+      \ 0.5))\n\n    def _visibility_rate(self):\n        rate = float(self.visibility_rate)\n\
+      \        return rate if np.isfinite(rate) and rate > 0.0 else 1.0\n\n    def\
+      \ _n_int(self):\n        integ = float(self.integration_time_s)\n        if\
+      \ not np.isfinite(integ) or integ <= 0.0:\n            integ = 0.1\n       \
+      \ return max(1, self._nearest_int(integ * self._visibility_rate()))\n\n    def\
+      \ _effective_integration_s(self):\n        return float(self._n_int()) / self._visibility_rate()\n\
+      \n    def _history_len(self):\n        fit_window = float(self.phase_rate_fit_window_s)\n\
+      \        if not np.isfinite(fit_window) or fit_window <= 0.0:\n            fit_window\
+      \ = 60.0\n        return max(3, self._nearest_int(fit_window * self._visibility_rate()))\n\
+      \n    def _coherence_for_rate(self, omega_rad_s, integration_s):\n        x\
+      \ = abs(float(omega_rad_s) * float(integration_s) / 2.0)\n        if x < 1e-9:\n\
+      \            return 1.0\n        return abs(math.sin(x) / x)\n\n    def _solve_coherence_x(self,\
+      \ target_fraction):\n        target = min(max(float(target_fraction), 1e-6),\
+      \ 0.999999)\n        lo = 0.0\n        hi = math.pi\n        for _ in range(80):\n\
+      \            mid = 0.5 * (lo + hi)\n            value = math.sin(mid) / mid\
+      \ if mid != 0.0 else 1.0\n            if value > target:\n                lo\
+      \ = mid\n            else:\n                hi = mid\n        return 0.5 * (lo\
+      \ + hi)\n\n    def _recommended_max_s(self, omega_rad_s):\n        omega = abs(float(omega_rad_s))\n\
+      \        if omega < 1e-12:\n            return MAX_INTEGRATION_S\n        target\
+      \ = float(self.coherence_target_pct) / 100.0\n        x = self._solve_coherence_x(target)\n\
+      \        return min(MAX_INTEGRATION_S, 2.0 * x / omega)\n\n    def set_visibility_rate(self,\
+      \ value):\n        with self._lock:\n            self.visibility_rate = float(value)\n\
+      \            self._history = []\n            self._warned_quantization = False\n\
+      \n    def set_integration_time_s(self, value):\n        with self._lock:\n \
+      \           self.integration_time_s = float(value)\n            self._warned_quantization\
+      \ = False\n\n    def set_phase_rate_fit_window_s(self, value):\n        with\
+      \ self._lock:\n            self.phase_rate_fit_window_s = float(value)\n   \
+      \         self._history = []\n\n    def set_coherence_target_pct(self, value):\n\
+      \        with self._lock:\n            self.coherence_target_pct = float(value)\n\
+      \n    def _estimate_locked(self):\n        m = self._history_len()\n       \
+      \ if len(self._history) < m:\n            return (np.nan, np.nan, np.nan, np.nan)\n\
+      \n        values = np.asarray(self._history[-m:], dtype=np.complex64)\n    \
+      \    phase = np.unwrap(np.angle(values)).astype(np.float64)\n        t = np.arange(m,\
+      \ dtype=np.float64) / self._visibility_rate()\n        t -= np.mean(t)\n   \
+      \     omega, intercept = np.polyfit(t, phase, 1)\n        residual = phase -\
+      \ (omega * t + intercept)\n        rms_deg = np.sqrt(np.mean(residual * residual))\
+      \ * 180.0 / np.pi\n        rate_deg_s = omega * 180.0 / np.pi\n        rate_coherence_pct\
+      \ = 100.0 * self._coherence_for_rate(omega, self._effective_integration_s())\n\
+      \        recommended_s = self._recommended_max_s(omega)\n        return (rate_deg_s,\
+      \ rms_deg, rate_coherence_pct, recommended_s)\n\n    def _warn_quantization_locked(self):\n\
+      \        requested = float(self.integration_time_s)\n        effective = self._effective_integration_s()\n\
+      \        if (\n            not self._warned_quantization\n            and np.isfinite(requested)\n\
+      \            and abs(requested - effective) > 1e-6\n        ):\n           \
+      \ print(\n                f\"Stage 9 advisor warning: requested {requested:.6g}\
+      \ s, effective {effective:.6g} s \"\n                f\"from {self._n_int()}\
+      \ native visibility samples.\",\n                flush=True,\n            )\n\
+      \            self._warned_quantization = True\n\n    def work(self, input_items,\
+      \ output_items):\n        samples = input_items[0]\n        rate_out = output_items[0]\n\
+      \        rms_out = output_items[1]\n        rate_coherence_out = output_items[2]\n\
+      \        recommended_out = output_items[3]\n        requested_out = output_items[4]\n\
+      \        effective_out = output_items[5]\n        n_int_out = output_items[6]\n\
+      \n        with self._lock:\n            self._warn_quantization_locked()\n \
+      \           for i, sample in enumerate(samples):\n                if self._finite_complex(sample)\
+      \ and abs(sample) > 0.0:\n                    self._history.append(np.complex64(sample))\n\
+      \                    m = self._history_len()\n                    if len(self._history)\
+      \ > m:\n                        self._history = self._history[-m:]\n       \
+      \         else:\n                    self._history = []\n\n                rate_deg_s,\
+      \ rms_deg, rate_coherence_pct, recommended_s = self._estimate_locked()\n   \
+      \             rate_out[i] = np.float32(rate_deg_s)\n                rms_out[i]\
+      \ = np.float32(rms_deg)\n                rate_coherence_out[i] = np.float32(rate_coherence_pct)\n\
+      \                recommended_out[i] = np.float32(recommended_s)\n          \
+      \      requested_out[i] = np.float32(self.integration_time_s)\n            \
+      \    effective_out[i] = np.float32(self._effective_integration_s())\n      \
+      \          n_int_out[i] = np.float32(self._n_int())\n\n        return len(samples)\n"
     affinity: ''
     alias: ''
     coherence_target_pct: coherence_target_pct
-    comment: Stage 9 advisory-only residual native stopped-phase rate and coherence estimates.
+    comment: Stage 9 advisory-only residual native stopped-phase rate and coherence
+      estimates.
     integration_time_s: integration_time_s
     maxoutbuf: '0'
     minoutbuf: '0'
     phase_rate_fit_window_s: phase_rate_fit_window_s
     visibility_rate: visibility_rate
   states:
-    _io_cache: ('Phase Stability Advisor', 'blk', [('visibility_rate', '10.0'), ('integration_time_s', '1.0'), ('phase_rate_fit_window_s',
-      '60.0'), ('coherence_target_pct', '95.0')], [('0', 'complex', 1)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float',
-      1), ('3', 'float', 1), ('4', 'float', 1), ('5', 'float', 1), ('6', 'float', 1)], 'Stage 9 residual phase-rate and coherence
-      advisor.', ['visibility_rate', 'integration_time_s', 'phase_rate_fit_window_s', 'coherence_target_pct'])
+    _io_cache: ('Phase Stability Advisor', 'blk', [('visibility_rate', '10.0'), ('integration_time_s',
+      '1.0'), ('phase_rate_fit_window_s', '60.0'), ('coherence_target_pct', '95.0')],
+      [('0', 'complex', 1)], [('0', 'float', 1), ('1', 'float', 1), ('2', 'float',
+      1), ('3', 'float', 1), ('4', 'float', 1), ('5', 'float', 1), ('6', 'float',
+      1)], 'Stage 9 residual phase-rate and coherence advisor.', ['visibility_rate',
+      'integration_time_s', 'phase_rate_fit_window_s', 'coherence_target_pct'])
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -2475,7 +2655,8 @@ blocks:
     affinity: ''
     alias: ''
     bus_structure_sink: '[[0,],]'
-    comment: Terminate duplicate Stage 9 advisor effective-integration output; coherent integrator already displays this value.
+    comment: Terminate duplicate Stage 9 advisor effective-integration output; coherent
+      integrator already displays this value.
     num_inputs: '1'
     type: float
     vlen: '1'
@@ -2495,8 +2676,8 @@ blocks:
     affinity: ''
     alias: ''
     bus_structure_sink: '[[0,],]'
-    comment: Terminate duplicate Stage 9 advisor integration-sample-count output; coherent integrator already displays this
-      value.
+    comment: Terminate duplicate Stage 9 advisor integration-sample-count output;
+      coherent integrator already displays this value.
     num_inputs: '1'
     type: float
     vlen: '1'
@@ -2586,7 +2767,8 @@ blocks:
     color7: ("black", "black")
     color8: ("black", "black")
     color9: ("black", "black")
-    comment: Stage 9 coherent integration numerical diagnostics. All inputs share the completed-integration cadence.
+    comment: Stage 9 coherent integration numerical diagnostics. All inputs share
+      the completed-integration cadence.
     factor1: '1'
     factor10: '1'
     factor2: '1'
@@ -2652,7 +2834,8 @@ blocks:
     color7: ("black", "black")
     color8: ("black", "black")
     color9: ("black", "black")
-    comment: Stage 9 phase-stability numerical diagnostics. All inputs come from the native-rate advisor block.
+    comment: Stage 9 phase-stability numerical diagnostics. All inputs come from the
+      native-rate advisor block.
     factor1: '1'
     factor10: '1'
     factor2: '1'
@@ -3418,269 +3601,127 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
-- name: stage10_observation_name
-  id: variable_qtgui_entry
-  parameters:
-    comment: Stage 10 FITS-IDI observation name. Used only when UV logging is started.
-    entry_signal: editingFinished
-    gui_hint: ''
-    label: Observation Name
-    type: string
-    value: obs1
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate:
-    - 6080
-    - 560.0
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_output_dir
-  id: variable_qtgui_entry
-  parameters:
-    comment: Stage 10 FITS-IDI output directory. Observation data are not written into the Git repository.
-    entry_signal: editingFinished
-    gui_hint: ''
-    label: FITS-IDI Output Directory
-    type: string
-    value: ~/FX_Correlator_Data
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate:
-    - 6080
-    - 680.0
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: uv_logging_enable
-  id: variable_qtgui_chooser
-  parameters:
-    comment: Stage 10 FITS-IDI recording control. Defaults OFF; switch to Enabled to start, Disabled to stop/finalize.
-    gui_hint: ''
-    label: UV Logging
-    label0: Start UV Logging
-    label1: Stop UV Logging
-    label2: ''
-    label3: ''
-    label4: ''
-    labels: '[]'
-    num_opts: '2'
-    option0: '0'
-    option1: '1'
-    option2: '2'
-    option3: '3'
-    option4: '4'
-    options: '[0, 1]'
-    orient: Qt.QHBoxLayout
-    type: int
-    value: '0'
-    widget: combo_box
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate:
-    - 6080
-    - 800.0
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_uv_logging_control_source
-  id: analog_sig_source_x
-  parameters:
-    affinity: ''
-    alias: ''
-    ampl: '0'
-    comment: Stage 10 low-rate logging-control stream. 0.0=off, 1.0=recording requested.
-    freq: '0'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    offset: float(uv_logging_enable)
-    phase: '0'
-    samp_rate: visibility_rate
-    type: float
-    waveform: analog.GR_CONST_WAVE
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate:
-    - 6080
-    - 1168.0
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_source_mode_control_source
-  id: analog_sig_source_x
-  parameters:
-    affinity: ''
-    alias: ''
-    ampl: '0'
-    comment: Stage 10 low-rate source-mode control stream. 0.0=Sun, 1.0=Manual RA/Dec.
-    freq: '0'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    offset: float(source_mode)
-    phase: '0'
-    samp_rate: visibility_rate
-    type: float
-    waveform: analog.GR_CONST_WAVE
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate:
-    - 6312
-    - 1168.0
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_manual_ra_control_source
-  id: analog_sig_source_x
-  parameters:
-    affinity: ''
-    alias: ''
-    ampl: '0'
-    comment: Stage 10 low-rate manual RA control stream in decimal hours.
-    freq: '0'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    offset: float(manual_ra_hours)
-    phase: '0'
-    samp_rate: visibility_rate
-    type: float
-    waveform: analog.GR_CONST_WAVE
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate:
-    - 6544
-    - 1168.0
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: stage10_manual_dec_control_source
-  id: analog_sig_source_x
-  parameters:
-    affinity: ''
-    alias: ''
-    ampl: '0'
-    comment: Stage 10 low-rate manual Dec control stream in decimal degrees.
-    freq: '0'
-    maxoutbuf: '0'
-    minoutbuf: '0'
-    offset: float(manual_dec_deg)
-    phase: '0'
-    samp_rate: visibility_rate
-    type: float
-    waveform: analog.GR_CONST_WAVE
-  states:
-    bus_sink: false
-    bus_source: false
-    bus_structure: null
-    coordinate:
-    - 6776
-    - 1168.0
-    enabled: true
-    rotation: 0
-    state: enabled
-- name: fitsidi_visibility_recorder
+- name: stage10_visibility_publisher
   id: epy_block
   parameters:
-    _source_code: |-
-      import os
-      import sys
-
-      import numpy as np
-      from gnuradio import gr
-
-      for _stage10_path in [
-          os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "",
-          os.getcwd(),
-          os.path.join(os.getcwd(), "grc"),
-      ]:
-          if _stage10_path and os.path.isdir(_stage10_path) and _stage10_path not in sys.path:
-              sys.path.insert(0, _stage10_path)
-
-      try:
-          from fx_interferometer_v1_stage10_fitsidi_recorder import blk as _stage10_recorder_blk
-      except Exception as _stage10_import_error:
-          _stage10_import_error_text = str(_stage10_import_error)
-          class blk(gr.sync_block):
-              def __init__(self, *args, **kwargs):
-                  print(f"Stage 10 FITS-IDI recorder import failed: {_stage10_import_error_text}", flush=True)
-                  gr.sync_block.__init__(
-                      self,
-                      name="FITS-IDI Visibility Recorder",
-                      in_sig=[
-                          np.complex64,
-                          np.float32,
-                          np.float32,
-                          np.float32,
-                          np.float32,
-                          np.float32,
-                          np.float32,
-                          np.float32,
-                      ],
-                      out_sig=[np.float32, np.float32, np.float32],
-                  )
-              def work(self, input_items, output_items):
-                  nout = min(len(input_items[0]), len(output_items[0]))
-                  output_items[0][:nout] = -1.0
-                  output_items[1][:nout] = 0.0
-                  output_items[2][:nout] = 0.0
-                  return nout
-      else:
-          class blk(_stage10_recorder_blk):
-              pass
+    _source_code: "import os\nimport sys\n\nimport numpy as np\nfrom gnuradio import\
+      \ gr\n\nfor _stage10_path in [\n    os.path.dirname(os.path.abspath(__file__))\
+      \ if \"__file__\" in globals() else \"\",\n    os.getcwd(),\n    os.path.join(os.getcwd(),\
+      \ \"grc\"),\n]:\n    if _stage10_path and os.path.isdir(_stage10_path) and _stage10_path\
+      \ not in sys.path:\n        sys.path.insert(0, _stage10_path)\n\ntry:\n    from\
+      \ fx_interferometer_v1_stage10_visibility_publisher import blk as _stage10_publisher_blk\n\
+      except Exception as _stage10_import_error:\n    _stage10_import_error_text =\
+      \ str(_stage10_import_error)\n    class blk(gr.sync_block):\n        def __init__(self,\
+      \ *args, **kwargs):\n            print(f\"Stage 10 visibility publisher import\
+      \ failed: {_stage10_import_error_text}\", flush=True)\n            gr.sync_block.__init__(\n\
+      \                self,\n                name=\"Stage 10 Visibility Publisher\"\
+      ,\n                in_sig=[np.complex64, np.float32, np.float32, np.float32],\n\
+      \                out_sig=[np.float32],\n            )\n        def work(self,\
+      \ input_items, output_items):\n            nout = min(len(input_items[0]), len(output_items[0]))\n\
+      \            output_items[0][:nout] = 0.0\n            return nout\nelse:\n\
+      \    class blk(_stage10_publisher_blk):\n        pass\n"
     affinity: ''
     alias: ''
     baseline_e_m: baseline_e_m
     baseline_n_m: baseline_n_m
     baseline_u_m: baseline_u_m
-    comment: 'Stage 10 only: low-rate FITS-IDI sink fed only by aligned Stage-9 integrated V_stopped outputs.'
+    comment: 'Stage 10A only: publishes Stage-9 integrated V_stopped records over
+      localhost JSON; no file I/O.'
     delay_correction_enable: delay_correction_enable
     fft_size: fft_size
     fringe_stop_enable: fringe_stop_enable
     fringe_stop_sign: fringe_stop_sign
-    gain0: gain0
-    gain1: gain1
+    host: '"127.0.0.1"'
     instrument_delay_ns: instrument_delay_ns
-    integration_time_s: integration_time_s
     manual_dec_deg: manual_dec_deg
     manual_ra_hours: manual_ra_hours
     maxoutbuf: '0'
     minoutbuf: '0'
-    observation_name: stage10_observation_name
-    output_dir: stage10_output_dir
+    port: '48710'
     samp_rate: samp_rate
     site_height_m: site_height_m
     site_lat_deg: site_lat_deg
     site_lon_deg: site_lon_deg
     sky_cf_hz: sky_cf
     source_mode: source_mode
-    stokes_code: '-5'
-    uv_logging_enable: uv_logging_enable
     visibility_edge_exclude_pct: visibility_edge_exclude_pct
   states:
-    _io_cache: ('FITS-IDI Visibility Recorder', 'blk', [('uv_logging_enable', '0'), ('observation_name', 'obs1'), ('output_dir',
-      '~/FX_Correlator_Data'), ('source_mode', '0'), ('manual_ra_hours', '5.0'), ('manual_dec_deg', '-30.0'), ('site_lat_deg',
-      '-32.724'), ('site_lon_deg', '152.130167'), ('site_height_m', '70.0'), ('baseline_e_m', '-5.785'), ('baseline_n_m',
-      '0.095'), ('baseline_u_m', '0.580'), ('sky_cf_hz', '4800000000.0'), ('samp_rate', '30720000.0'), ('fft_size', '4096'),
-      ('visibility_edge_exclude_pct', '20.0'), ('instrument_delay_ns', '0.0'), ('delay_correction_enable', 'True'), ('fringe_stop_enable',
-      'True'), ('fringe_stop_sign', '-1'), ('integration_time_s', '1.0'), ('gain0', '40.0'), ('gain1', '40.0'), ('stokes_code',
-      '-5')], [('0', 'complex', 1), ('1', 'float', 1), ('2', 'float', 1), ('3', 'float', 1), ('4', 'float', 1), ('5',
-      'float', 1), ('6', 'float', 1), ('7', 'float', 1)], [('0', 'float',
-      1), ('1', 'float', 1), ('2', 'float', 1)], 'Stage 10 low-rate FITS-IDI visibility recorder.', ['uv_logging_enable',
-      'observation_name', 'output_dir', 'source_mode', 'manual_ra_hours', 'manual_dec_deg', 'site_lat_deg', 'site_lon_deg',
-      'site_height_m', 'baseline_e_m', 'baseline_n_m', 'baseline_u_m', 'sky_cf_hz', 'samp_rate', 'fft_size', 'visibility_edge_exclude_pct',
-      'instrument_delay_ns', 'delay_correction_enable', 'fringe_stop_enable', 'fringe_stop_sign', 'integration_time_s', 'gain0',
-      'gain1', 'stokes_code'])
+    _io_cache:
+    - Stage 10 Visibility Publisher
+    - blk
+    - - - host
+        - '"127.0.0.1"'
+      - - port
+        - '48710'
+      - - source_mode
+        - '0'
+      - - manual_ra_hours
+        - '5.0'
+      - - manual_dec_deg
+        - '-30.0'
+      - - site_lat_deg
+        - '-32.724'
+      - - site_lon_deg
+        - '152.130167'
+      - - site_height_m
+        - '70.0'
+      - - baseline_e_m
+        - '-5.785'
+      - - baseline_n_m
+        - '0.095'
+      - - baseline_u_m
+        - '0.580'
+      - - sky_cf_hz
+        - '4800000000.0'
+      - - samp_rate
+        - '30720000.0'
+      - - fft_size
+        - '4096'
+      - - visibility_edge_exclude_pct
+        - '20.0'
+      - - instrument_delay_ns
+        - '0.0'
+      - - delay_correction_enable
+        - 'True'
+      - - fringe_stop_enable
+        - 'True'
+      - - fringe_stop_sign
+        - '-1'
+    - - - '0'
+        - complex
+        - 1
+      - - '1'
+        - float
+        - 1
+      - - '2'
+        - float
+        - 1
+      - - '3'
+        - float
+        - 1
+    - - - '0'
+        - float
+        - 1
+    - Stage 10 localhost visibility publisher.
+    - - baseline_e_m
+      - baseline_n_m
+      - baseline_u_m
+      - delay_correction_enable
+      - fft_size
+      - fringe_stop_enable
+      - fringe_stop_sign
+      - host
+      - instrument_delay_ns
+      - manual_dec_deg
+      - manual_ra_hours
+      - port
+      - samp_rate
+      - site_height_m
+      - site_lat_deg
+      - site_lon_deg
+      - sky_cf_hz
+      - source_mode
+      - visibility_edge_exclude_pct
     bus_sink: false
     bus_source: false
     bus_structure: null
@@ -3690,27 +3731,26 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
-- name: stage10_number_sink
+- name: stage10_publisher_status_sink
   id: qtgui_number_sink
   parameters:
     affinity: ''
     alias: ''
-    autoscale: 'True'
+    autoscale: 'False'
     avg: '0'
     color1: ("blue", "red")
-    color10: ("black", "black")
-    color2: ("blue", "red")
-    color3: ("blue", "red")
+    color2: ("black", "black")
+    color3: ("black", "black")
     color4: ("black", "black")
     color5: ("black", "black")
     color6: ("black", "black")
     color7: ("black", "black")
     color8: ("black", "black")
     color9: ("black", "black")
-    comment: 'Stage 10 FITS-IDI recording status. State code: -1 ERROR, 0 OFF, 1 RECORDING, 2 FINALIZING, 3 COMPLETE. Current
-      file path is printed to the console on start/complete.'
+    color10: ("black", "black")
+    comment: Stage 10A publisher connection status only. FITS-IDI recording is controlled
+      by the standalone logger.
     factor1: '1'
-    factor10: '1'
     factor2: '1'
     factor3: '1'
     factor4: '1'
@@ -3719,33 +3759,34 @@ blocks:
     factor7: '1'
     factor8: '1'
     factor9: '1'
+    factor10: '1'
     graph_type: qtgui.NUM_GRAPH_NONE
     gui_hint: ''
-    label1: Recording State
-    label10: ''
-    label2: Records Written
-    label3: Current File Code
+    label1: Logger Connected
+    label2: ''
+    label3: ''
     label4: ''
     label5: ''
     label6: ''
     label7: ''
     label8: ''
     label9: ''
-    max: '100'
-    min: '-1'
-    name: '"Stage 10 / FITS-IDI Recording"'
-    nconnections: '3'
+    label10: ''
+    max: '1'
+    min: '0'
+    name: '"Stage 10A / Visibility Publisher"'
+    nconnections: '1'
     type: float
     unit1: code
-    unit10: ''
-    unit2: records
-    unit3: file
+    unit2: ''
+    unit3: ''
     unit4: ''
     unit5: ''
     unit6: ''
     unit7: ''
     unit8: ''
     unit9: ''
+    unit10: ''
     update_time: '0.5'
   states:
     bus_sink: false
@@ -4124,48 +4165,24 @@ connections:
   - '0'
 - - coherent_visibility_integrator
   - '0'
-  - fitsidi_visibility_recorder
+  - stage10_visibility_publisher
   - '0'
 - - coherent_visibility_integrator
   - '1'
-  - fitsidi_visibility_recorder
+  - stage10_visibility_publisher
   - '1'
 - - coherent_visibility_integrator
   - '2'
-  - fitsidi_visibility_recorder
+  - stage10_visibility_publisher
   - '2'
 - - coherent_visibility_integrator
   - '3'
-  - fitsidi_visibility_recorder
+  - stage10_visibility_publisher
   - '3'
-- - stage10_uv_logging_control_source
+- - stage10_visibility_publisher
   - '0'
-  - fitsidi_visibility_recorder
-  - '4'
-- - stage10_source_mode_control_source
+  - stage10_publisher_status_sink
   - '0'
-  - fitsidi_visibility_recorder
-  - '5'
-- - stage10_manual_ra_control_source
-  - '0'
-  - fitsidi_visibility_recorder
-  - '6'
-- - stage10_manual_dec_control_source
-  - '0'
-  - fitsidi_visibility_recorder
-  - '7'
-- - fitsidi_visibility_recorder
-  - '0'
-  - stage10_number_sink
-  - '0'
-- - fitsidi_visibility_recorder
-  - '1'
-  - stage10_number_sink
-  - '1'
-- - fitsidi_visibility_recorder
-  - '2'
-  - stage10_number_sink
-  - '2'
 metadata:
   file_format: 1
   grc_version: 3.10.9.2
