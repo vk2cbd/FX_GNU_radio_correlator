@@ -321,6 +321,7 @@ class Stage10UVFITSTests(unittest.TestCase):
         recorder_code = blocks["uvfits_visibility_recorder"]["parameters"]["_source_code"]
         self.assertIn("_add_stage10_module_paths()", recorder_code)
         self.assertIn("from fx_interferometer_v1_stage10_uvfits_recorder import blk", recorder_code)
+        self.assertIn("except Exception as _stage10_import_error", recorder_code)
 
         connections = {tuple(connection) for connection in graph["connections"]}
         expected = {

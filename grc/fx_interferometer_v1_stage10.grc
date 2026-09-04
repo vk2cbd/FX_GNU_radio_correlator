@@ -3155,7 +3155,95 @@ blocks:
 
 
       _add_stage10_module_paths()
-      from fx_interferometer_v1_stage10_uvfits_recorder import blk
+      try:
+          from fx_interferometer_v1_stage10_uvfits_recorder import blk
+      except Exception as _stage10_import_error:
+          import numpy as np
+          from gnuradio import gr
+
+
+          class blk(gr.sync_block):
+              """Design-time fallback if GRC cannot import the Stage 10 recorder module."""
+
+              def __init__(
+                  self,
+                  record_uvfits=False,
+                  observation_name="observation",
+                  uvfits_output_dir="~/FX_Correlator_Data",
+                  source_mode=0,
+                  manual_ra_hours=5.0,
+                  manual_dec_deg=-30.0,
+                  site_lat_deg=-32.724,
+                  site_lon_deg=152.130167,
+                  site_height_m=70.0,
+                  baseline_e_m=-5.785,
+                  baseline_n_m=0.095,
+                  baseline_u_m=0.580,
+                  sky_cf_hz=4.800e9,
+                  lnb_lo_hz=5.950e9,
+                  samp_rate_hz=30.72e6,
+                  fft_size=4096,
+                  visibility_edge_exclude_pct=20.0,
+                  delay_correction_enabled=True,
+                  fringe_stop_enabled=True,
+                  fringe_stop_sign=-1,
+                  instrument_delay_ns=0.0,
+                  gain0_db=40.0,
+                  gain1_db=40.0,
+                  polarization="xx",
+                  software_commit="unknown",
+                  gnuradio_version="3.10.9.2",
+                  queue_max_records=256,
+              ):
+                  self._error = _stage10_import_error
+                  print(
+                      f"Stage 10 UVFITS recorder import failed: {_stage10_import_error}. "
+                      "Check that grc/fx_interferometer_v1_stage10_uvfits_recorder.py "
+                      "and grc/fx_interferometer_v1_stage10_uvfits_writer.py are present.",
+                      flush=True,
+                  )
+                  gr.sync_block.__init__(
+                      self,
+                      name="UVFITS Visibility Recorder",
+                      in_sig=[np.complex64, np.float32, np.float32, np.float32],
+                      out_sig=[np.float32, np.float32],
+                  )
+
+              def set_record_uvfits(self, value):
+                  pass
+
+              def set_observation_name(self, value):
+                  pass
+
+              def set_uvfits_output_dir(self, value):
+                  pass
+
+              def set_source_mode(self, value):
+                  pass
+
+              def set_manual_ra_hours(self, value):
+                  pass
+
+              def set_manual_dec_deg(self, value):
+                  pass
+
+              def set_sky_cf_hz(self, value):
+                  pass
+
+              def set_baseline_e_m(self, value):
+                  pass
+
+              def set_baseline_n_m(self, value):
+                  pass
+
+              def set_baseline_u_m(self, value):
+                  pass
+
+              def work(self, input_items, output_items):
+                  nout = len(input_items[0])
+                  output_items[0][:nout] = np.float32(4.0)
+                  output_items[1][:nout] = np.float32(0.0)
+                  return nout
     affinity: ''
     alias: ''
     baseline_e_m: baseline_e_m
