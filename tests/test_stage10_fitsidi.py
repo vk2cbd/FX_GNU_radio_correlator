@@ -319,7 +319,7 @@ class Stage10FitsIdiTests(unittest.TestCase):
             self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
             self.assertTrue(pathlib.Path(block._writer.final_file).exists())
 
-    def test_initial_enabled_constructor_does_not_start_writer(self):
+    def test_default_disabled_constructor_does_not_start_writer(self):
         gnuradio = types.ModuleType("gnuradio")
 
         class FakeSyncBlock:
@@ -336,20 +336,9 @@ class Stage10FitsIdiTests(unittest.TestCase):
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
         with tempfile.TemporaryDirectory() as tmp:
-            block = module.blk(uv_logging_enable=True, output_dir=tmp)
+            block = module.blk(uv_logging_enable=False, output_dir=tmp)
             self.assertEqual(block._state, writer_mod.STATE_OFF)
             self.assertIsNone(block._writer)
-            block.set_uv_logging_enable(True)
-            self.assertEqual(block._state, writer_mod.STATE_OFF)
-            block.set_uv_logging_enable(False)
-            self.assertEqual(block._state, writer_mod.STATE_OFF)
-            block.set_uv_logging_enable(True)
-            self.assertEqual(block._state, writer_mod.STATE_RECORDING)
-            block.set_uv_logging_enable(False)
-            deadline = Time.now().unix + 5.0
-            while block._state == writer_mod.STATE_FINALIZING and Time.now().unix < deadline:
-                __import__("time").sleep(0.05)
-            self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
 
     def test_control_stream_rising_and_falling_edges_control_recording(self):
         gnuradio = types.ModuleType("gnuradio")
@@ -409,7 +398,7 @@ class Stage10FitsIdiTests(unittest.TestCase):
                 self.assertAlmostEqual(float(source_row["RAEPO"]), 18.3 * 15.0, places=4)
                 self.assertAlmostEqual(float(source_row["DECEPO"]), -16.2, places=4)
 
-    def test_initial_high_control_stream_does_not_autostart_recording(self):
+    def test_high_control_stream_starts_recording_immediately(self):
         gnuradio = types.ModuleType("gnuradio")
 
         class FakeSyncBlock:
@@ -449,12 +438,8 @@ class Stage10FitsIdiTests(unittest.TestCase):
                 np.array([-16.2], dtype=np.float32),
             ]
             block.work(high_inputs, outputs)
-            self.assertEqual(block._state, writer_mod.STATE_OFF)
-            self.assertIsNone(block._writer)
-            block.work(low_inputs, outputs)
-            self.assertEqual(block._state, writer_mod.STATE_OFF)
-            block.work(high_inputs, outputs)
             self.assertEqual(block._state, writer_mod.STATE_RECORDING)
+            self.assertIsNotNone(block._writer)
             block.work(low_inputs, outputs)
             deadline = Time.now().unix + 5.0
             while block._state == writer_mod.STATE_FINALIZING and Time.now().unix < deadline:
