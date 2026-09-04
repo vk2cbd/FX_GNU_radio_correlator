@@ -244,10 +244,11 @@ History choices:
 - 1, 2, 4 h
 
 ## 23. Logging
-Visibility logging:
+Visibility recording:
 - optional, default OFF
-- CSV
-- one row per integrated visibility
+- UVFITS primary scientific visibility recording
+- one baseline-time visibility record per integrated visibility
+- CSV may be written only as an optional diagnostic/export sidecar
 
 Fields shall include at least:
 - UTC
@@ -293,7 +294,7 @@ Likely Embedded Python blocks:
 - astronomy geometry / visibility corrector
 - runtime visibility integrator
 - phase-stability monitor
-- visibility CSV logger
+- visibility UVFITS recorder
 - spectral HDF5 logger
 
 Migrate to an OOT module only after behaviour is stable and tested.

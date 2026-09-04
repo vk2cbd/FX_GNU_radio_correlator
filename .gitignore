@@ -22,6 +22,10 @@ observations/*.h5
 observations/*.hdf5
 calibration/*.h5
 calibration/*.hdf5
+*.uvfits
+*.partial.uvfits
+*.stage10.sqlite
+*_diagnostics.csv
 
 # Large captures should never be committed
 *.cfile

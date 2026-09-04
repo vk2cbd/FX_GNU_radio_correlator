@@ -254,6 +254,110 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: observation_name
+  id: variable_qtgui_entry
+  parameters:
+    comment: 'Stage 10 UVFITS observation name. Used only when Record UVFITS is enabled.'
+    entry_signal: editingFinished
+    gui_hint: ''
+    label: Observation Name
+    type: string
+    value: observation
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [6080, 1320.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: uvfits_output_dir
+  id: variable_qtgui_entry
+  parameters:
+    comment: 'Stage 10 UVFITS output directory. Observation files are never overwritten.'
+    entry_signal: editingFinished
+    gui_hint: ''
+    label: UVFITS Output Directory
+    type: string
+    value: ~/FX_Correlator_Data
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [6080, 1440.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: record_uvfits
+  id: variable_qtgui_chooser
+  parameters:
+    comment: 'Stage 10 recording control. OFF by default. ON starts a new UVFITS observation; OFF finalizes it.'
+    gui_hint: ''
+    label: Record UVFITS
+    label0: 'OFF'
+    label1: Record
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: 'False'
+    option1: 'True'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[False, True]'
+    orient: Qt.QHBoxLayout
+    type: bool
+    value: 'False'
+    widget: combo_box
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [6080, 1560.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stage10_polarization
+  id: variable
+  parameters:
+    comment: 'Stage 10 instrumental polarization label for pyuvdata. Assumption: xx.'
+    value: '"xx"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [6080, 1680.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stage10_queue_max_records
+  id: variable
+  parameters:
+    comment: 'Maximum queued Stage 10 visibility records before entering ERROR.'
+    value: '256'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [6080, 1784.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stage10_software_commit
+  id: variable
+  parameters:
+    comment: 'Stage 10 UVFITS history commit label. Generated flowgraphs may update this manually.'
+    value: '"unknown"'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [6080, 1888.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: phase_rate_fit_window_s
   id: variable
   parameters:
@@ -3029,6 +3133,116 @@ blocks:
     enabled: true
     rotation: 0
     state: enabled
+- name: uvfits_visibility_recorder
+  id: epy_block
+  parameters:
+    _source_code: |
+      from fx_interferometer_v1_stage10_uvfits_recorder import blk
+    affinity: ''
+    alias: ''
+    baseline_e_m: baseline_e_m
+    baseline_n_m: baseline_n_m
+    baseline_u_m: baseline_u_m
+    comment: 'Stage 10 only: low-rate asynchronous UVFITS recorder. Taps the four aligned Stage-9 integrated V_stopped outputs and leaves all Stage 1-9 DSP unchanged.'
+    delay_correction_enabled: delay_correction_enable
+    fft_size: fft_size
+    fringe_stop_enabled: fringe_stop_enable
+    fringe_stop_sign: fringe_stop_sign
+    gain0_db: gain0
+    gain1_db: gain1
+    gnuradio_version: '"3.10.9.2"'
+    instrument_delay_ns: instrument_delay_ns
+    lnb_lo_hz: lnb_lo
+    manual_dec_deg: manual_dec_deg
+    manual_ra_hours: manual_ra_hours
+    maxoutbuf: '0'
+    minoutbuf: '0'
+    observation_name: observation_name
+    polarization: stage10_polarization
+    queue_max_records: stage10_queue_max_records
+    record_uvfits: record_uvfits
+    samp_rate_hz: samp_rate
+    site_height_m: site_height_m
+    site_lat_deg: site_lat_deg
+    site_lon_deg: site_lon_deg
+    sky_cf_hz: sky_cf
+    software_commit: stage10_software_commit
+    source_mode: source_mode
+    uvfits_output_dir: uvfits_output_dir
+    visibility_edge_exclude_pct: visibility_edge_exclude_pct
+  states:
+    _io_cache: '(''UVFITS Visibility Recorder'', ''blk'', [(''record_uvfits'', ''False''), (''observation_name'', ''observation''), (''uvfits_output_dir'', ''~/FX_Correlator_Data''), (''source_mode'', ''0''), (''manual_ra_hours'', ''5.0''), (''manual_dec_deg'', ''-30.0''), (''site_lat_deg'', ''-32.724''), (''site_lon_deg'', ''152.130167''), (''site_height_m'', ''70.0''), (''baseline_e_m'', ''-5.785''), (''baseline_n_m'', ''0.095''), (''baseline_u_m'', ''0.580''), (''sky_cf_hz'', ''4.800e9''), (''lnb_lo_hz'', ''5.950e9''), (''samp_rate_hz'', ''30.72e6''), (''fft_size'', ''4096''), (''visibility_edge_exclude_pct'', ''20.0''), (''delay_correction_enabled'', ''True''), (''fringe_stop_enabled'', ''True''), (''fringe_stop_sign'', ''-1''), (''instrument_delay_ns'', ''0.0''), (''gain0_db'', ''40.0''), (''gain1_db'', ''40.0''), (''polarization'', ''xx''), (''software_commit'', ''unknown''), (''gnuradio_version'', ''3.10.9.2''), (''queue_max_records'', ''256'')], [(''0'', ''complex'', 1), (''1'', ''float'', 1), (''2'', ''float'', 1), (''3'', ''float'', 1)], [(''0'', ''float'', 1), (''1'', ''float'', 1)], ''Stage 10 asynchronous UVFITS visibility recorder.'', [''record_uvfits'', ''observation_name'', ''uvfits_output_dir'', ''source_mode'', ''manual_ra_hours'', ''manual_dec_deg'', ''site_lat_deg'', ''site_lon_deg'', ''site_height_m'', ''baseline_e_m'', ''baseline_n_m'', ''baseline_u_m'', ''sky_cf_hz'', ''lnb_lo_hz'', ''samp_rate_hz'', ''fft_size'', ''visibility_edge_exclude_pct'', ''delay_correction_enabled'', ''fringe_stop_enabled'', ''fringe_stop_sign'', ''instrument_delay_ns'', ''gain0_db'', ''gain1_db'', ''polarization'', ''software_commit'', ''gnuradio_version'', ''queue_max_records''])'
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [6080, 720.0]
+    enabled: true
+    rotation: 0
+    state: enabled
+- name: stage10_recording_status_sink
+  id: qtgui_number_sink
+  parameters:
+    affinity: ''
+    alias: ''
+    autoscale: 'False'
+    avg: '0'
+    color1: '("blue", "red")'
+    color10: '("black", "black")'
+    color2: '("blue", "red")'
+    color3: '("black", "black")'
+    color4: '("black", "black")'
+    color5: '("black", "black")'
+    color6: '("black", "black")'
+    color7: '("black", "black")'
+    color8: '("black", "black")'
+    color9: '("black", "black")'
+    comment: 'Stage 10 recording status. Recording State codes: 0=OFF, 1=RECORDING, 2=FINALIZING, 3=COMPLETE, 4=ERROR. Current output file path is printed in the terminal and stored in the journal.'
+    factor1: '1'
+    factor10: '1'
+    factor2: '1'
+    factor3: '1'
+    factor4: '1'
+    factor5: '1'
+    factor6: '1'
+    factor7: '1'
+    factor8: '1'
+    factor9: '1'
+    graph_type: qtgui.NUM_GRAPH_NONE
+    gui_hint: ''
+    label1: Recording State
+    label10: ''
+    label2: Records Captured
+    label3: ''
+    label4: ''
+    label5: ''
+    label6: ''
+    label7: ''
+    label8: ''
+    label9: ''
+    max: '1000000'
+    min: '0'
+    name: '"Stage 10 / UVFITS Recording"'
+    nconnections: '2'
+    type: float
+    unit1: code
+    unit10: ''
+    unit2: records
+    unit3: ''
+    unit4: ''
+    unit5: ''
+    unit6: ''
+    unit7: ''
+    unit8: ''
+    unit9: ''
+    update_time: '0.25'
+  states:
+    bus_sink: false
+    bus_source: false
+    bus_structure: null
+    coordinate: [6400, 720.0]
+    enabled: true
+    rotation: 0
+    state: enabled
 - name: phase_slope_number_sink
   id: qtgui_number_sink
   parameters:
@@ -3768,9 +3982,13 @@ connections:
 - [cross_phase_rad, '0', cross_phase_deg, '0']
 - [coherent_visibility_integrator, '0', integrated_visibility_mag, '0']
 - [coherent_visibility_integrator, '0', integrated_visibility_phase_rad, '0']
+- [coherent_visibility_integrator, '0', uvfits_visibility_recorder, '0']
 - [coherent_visibility_integrator, '1', stage9_number_sink, '4']
+- [coherent_visibility_integrator, '1', uvfits_visibility_recorder, '1']
 - [coherent_visibility_integrator, '2', stage9_number_sink, '0']
+- [coherent_visibility_integrator, '2', uvfits_visibility_recorder, '2']
 - [coherent_visibility_integrator, '3', stage9_number_sink, '1']
+- [coherent_visibility_integrator, '3', uvfits_visibility_recorder, '3']
 - [fringe_stop_corrector, '0', coherent_visibility_integrator, '0']
 - [fringe_stop_corrector, '0', phase_stability_advisor, '0']
 - [fringe_stop_corrector, '0', stopped_complex_to_float, '0']
@@ -3791,6 +4009,8 @@ connections:
 - [integrated_visibility_mag, '0', stage9_number_sink, '2']
 - [integrated_visibility_phase_deg, '0', stage9_number_sink, '3']
 - [integrated_visibility_phase_rad, '0', integrated_visibility_phase_deg, '0']
+- [uvfits_visibility_recorder, '0', stage10_recording_status_sink, '0']
+- [uvfits_visibility_recorder, '1', stage10_recording_status_sink, '1']
 - [phase_stability_advisor, '0', stage9_phase_stability_number_sink, '1']
 - [phase_stability_advisor, '1', stage9_phase_stability_number_sink, '2']
 - [phase_stability_advisor, '2', stage9_phase_stability_number_sink, '3']
