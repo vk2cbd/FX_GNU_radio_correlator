@@ -95,6 +95,7 @@ class blk(gr.sync_block):
         self._last_error = ""
         self._last_file_code = 0.0
         self._control_enabled = False
+        self._control_initialized = False
         gr.sync_block.__init__(
             self,
             name="FITS-IDI Visibility Recorder",
@@ -294,6 +295,14 @@ class blk(gr.sync_block):
             control_enabled = bool(float(input_items[4][i]) >= 0.5)
             with self._lock:
                 self._set_stream_controls_locked(input_items[5][i], input_items[6][i], input_items[7][i])
+                if not self._control_initialized:
+                    self._control_enabled = control_enabled
+                    self.uv_logging_enable = control_enabled
+                    self._control_initialized = True
+                    output_items[0][i] = np.float32(self._state)
+                    output_items[1][i] = np.float32(self._records_written)
+                    output_items[2][i] = np.float32(self._last_file_code)
+                    continue
                 previous_control_enabled = self._control_enabled
                 self._control_enabled = control_enabled
                 self.uv_logging_enable = control_enabled

@@ -272,6 +272,8 @@ class Stage10FitsIdiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             block = module.blk(uv_logging_enable=False, output_dir=tmp)
             block.uv_logging_enable = True
+            block._control_enabled = True
+            block._control_initialized = True
             block._state = writer_mod.STATE_RECORDING
             block._queue = types.SimpleNamespace(put_nowait=lambda record: (_ for _ in ()).throw(__import__("queue").Full()))
             inputs = [
@@ -370,6 +372,58 @@ class Stage10FitsIdiTests(unittest.TestCase):
                 self.assertEqual(source_row["SOURCE"].strip(), "Manual")
                 self.assertAlmostEqual(float(source_row["RAEPO"]), 18.3 * 15.0, places=4)
                 self.assertAlmostEqual(float(source_row["DECEPO"]), -16.2, places=4)
+
+    def test_initial_high_control_stream_does_not_autostart_recording(self):
+        gnuradio = types.ModuleType("gnuradio")
+
+        class FakeSyncBlock:
+            def __init__(self, *args, **kwargs):
+                pass
+
+        gnuradio.gr = types.SimpleNamespace(sync_block=FakeSyncBlock)
+        sys.modules["gnuradio"] = gnuradio
+        sys.modules["gnuradio.gr"] = gnuradio.gr
+        sys.path.insert(0, str(ROOT / "grc"))
+        path = ROOT / "grc" / "fx_interferometer_v1_stage10_fitsidi_recorder.py"
+        spec = importlib.util.spec_from_file_location("stage10_recorder_initial_high", path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as tmp:
+            block = module.blk(uv_logging_enable=True, output_dir=tmp)
+            outputs = [np.zeros(1, dtype=np.float32) for _ in range(3)]
+            high_inputs = [
+                np.array([2.0 + 3.0j], dtype=np.complex64),
+                np.array([97.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([10.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([18.3], dtype=np.float32),
+                np.array([-16.2], dtype=np.float32),
+            ]
+            low_inputs = [
+                np.array([2.0 + 3.0j], dtype=np.complex64),
+                np.array([97.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([10.0], dtype=np.float32),
+                np.array([0.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([18.3], dtype=np.float32),
+                np.array([-16.2], dtype=np.float32),
+            ]
+            block.work(high_inputs, outputs)
+            self.assertEqual(block._state, writer_mod.STATE_OFF)
+            self.assertIsNone(block._writer)
+            block.work(low_inputs, outputs)
+            self.assertEqual(block._state, writer_mod.STATE_OFF)
+            block.work(high_inputs, outputs)
+            self.assertEqual(block._state, writer_mod.STATE_RECORDING)
+            block.work(low_inputs, outputs)
+            deadline = Time.now().unix + 5.0
+            while block._state == writer_mod.STATE_FINALIZING and Time.now().unix < deadline:
+                __import__("time").sleep(0.05)
+            self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
 
     def test_stage10_grc_derives_from_stage9_without_dsp_regression(self):
         stage9 = yaml.safe_load((ROOT / "grc" / "fx_interferometer_v1_stage9.grc").read_text())
