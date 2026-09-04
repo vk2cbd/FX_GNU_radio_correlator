@@ -16,6 +16,12 @@ from fx_interferometer_v1_stage10_fitsidi_writer import (
 )
 
 
+def _as_bool(value):
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on", "enabled")
+    return bool(value)
+
+
 class blk(gr.sync_block):
     """Stage 10 low-rate FITS-IDI visibility recorder.
 
@@ -52,7 +58,7 @@ class blk(gr.sync_block):
         gain1=40.0,
         stokes_code=-5,
     ):
-        self.uv_logging_enable = bool(uv_logging_enable)
+        self.uv_logging_enable = _as_bool(uv_logging_enable)
         self.observation_name = str(observation_name)
         self.output_dir = str(output_dir)
         self.source_mode = int(source_mode)
@@ -69,8 +75,8 @@ class blk(gr.sync_block):
         self.fft_size = int(fft_size)
         self.visibility_edge_exclude_pct = float(visibility_edge_exclude_pct)
         self.instrument_delay_ns = float(instrument_delay_ns)
-        self.delay_correction_enable = bool(delay_correction_enable)
-        self.fringe_stop_enable = bool(fringe_stop_enable)
+        self.delay_correction_enable = _as_bool(delay_correction_enable)
+        self.fringe_stop_enable = _as_bool(fringe_stop_enable)
         self.fringe_stop_sign = int(fringe_stop_sign)
         self.integration_time_s = float(integration_time_s)
         self.gain0 = float(gain0)
@@ -95,7 +101,17 @@ class blk(gr.sync_block):
 
     def set_uv_logging_enable(self, value):
         with self._lock:
-            self.uv_logging_enable = bool(value)
+            self.uv_logging_enable = _as_bool(value)
+            if self.uv_logging_enable:
+                if self._state in (STATE_OFF, STATE_COMPLETE, STATE_ERROR):
+                    try:
+                        self._start_locked()
+                    except Exception as exc:
+                        self._state = STATE_ERROR
+                        self._last_error = str(exc)
+                        print(f"Stage 10 FITS-IDI recorder start rejected: {exc}", flush=True)
+            elif self._state == STATE_RECORDING:
+                self._request_stop_locked(error=False)
 
     def set_observation_name(self, value):
         with self._lock:
@@ -163,11 +179,11 @@ class blk(gr.sync_block):
 
     def set_delay_correction_enable(self, value):
         with self._lock:
-            self.delay_correction_enable = bool(value)
+            self.delay_correction_enable = _as_bool(value)
 
     def set_fringe_stop_enable(self, value):
         with self._lock:
-            self.fringe_stop_enable = bool(value)
+            self.fringe_stop_enable = _as_bool(value)
 
     def set_fringe_stop_sign(self, value):
         with self._lock:
