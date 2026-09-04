@@ -27,7 +27,8 @@ class blk(gr.sync_block):
 
     Inputs are the aligned Stage-9 coherent integrator outputs:
     V_stopped, window coherence percent, effective integration seconds, N_int,
-    and a low-rate UV logging control stream.
+    followed by low-rate GUI control streams for UV logging, source mode,
+    manual RA hours, and manual Dec degrees.
     Disk I/O is isolated in a worker thread so GNU Radio work() only enqueues
     small visibility records.
     """
@@ -93,26 +94,26 @@ class blk(gr.sync_block):
         self._chunks_written = 0
         self._last_error = ""
         self._last_file_code = 0.0
+        self._control_enabled = False
         gr.sync_block.__init__(
             self,
             name="FITS-IDI Visibility Recorder",
-            in_sig=[np.complex64, np.float32, np.float32, np.float32, np.float32],
+            in_sig=[
+                np.complex64,
+                np.float32,
+                np.float32,
+                np.float32,
+                np.float32,
+                np.float32,
+                np.float32,
+                np.float32,
+            ],
             out_sig=[np.float32, np.float32, np.float32],
         )
 
     def set_uv_logging_enable(self, value):
         with self._lock:
             self.uv_logging_enable = _as_bool(value)
-            if self.uv_logging_enable:
-                if self._state in (STATE_OFF, STATE_COMPLETE, STATE_ERROR):
-                    try:
-                        self._start_locked()
-                    except Exception as exc:
-                        self._state = STATE_ERROR
-                        self._last_error = str(exc)
-                        print(f"Stage 10 FITS-IDI recorder start rejected: {exc}", flush=True)
-            elif self._state == STATE_RECORDING:
-                self._request_stop_locked(error=False)
 
     def set_observation_name(self, value):
         with self._lock:
@@ -282,28 +283,31 @@ class blk(gr.sync_block):
                 self._last_error = str(error)
                 print(f"Stage 10 FITS-IDI recorder error: {error}", flush=True)
 
-    def _maintain_state(self):
-        with self._lock:
-            if self.uv_logging_enable:
-                if self._state in (STATE_OFF, STATE_COMPLETE, STATE_ERROR):
-                    try:
-                        self._start_locked()
-                    except Exception as exc:
-                        self._state = STATE_ERROR
-                        self._last_error = str(exc)
-                        print(f"Stage 10 FITS-IDI recorder start rejected: {exc}", flush=True)
-            else:
-                if self._state == STATE_RECORDING:
-                    self._request_stop_locked(error=False)
+    def _set_stream_controls_locked(self, source_mode, manual_ra_hours, manual_dec_deg):
+        self.source_mode = int(round(float(source_mode)))
+        self.manual_ra_hours = float(manual_ra_hours)
+        self.manual_dec_deg = float(manual_dec_deg)
 
     def work(self, input_items, output_items):
-        nout = min(len(input_items[0]), len(input_items[4]), len(output_items[0]))
+        nout = min(*(len(items) for items in input_items), len(output_items[0]))
         for i in range(nout):
             control_enabled = bool(float(input_items[4][i]) >= 0.5)
-            if control_enabled != self.uv_logging_enable:
-                self.set_uv_logging_enable(control_enabled)
-            else:
-                self._maintain_state()
+            with self._lock:
+                self._set_stream_controls_locked(input_items[5][i], input_items[6][i], input_items[7][i])
+                previous_control_enabled = self._control_enabled
+                self._control_enabled = control_enabled
+                self.uv_logging_enable = control_enabled
+                if control_enabled and not previous_control_enabled:
+                    if self._state in (STATE_OFF, STATE_COMPLETE, STATE_ERROR):
+                        try:
+                            self._start_locked()
+                        except Exception as exc:
+                            self._state = STATE_ERROR
+                            self._last_error = str(exc)
+                            print(f"Stage 10 FITS-IDI recorder start rejected: {exc}", flush=True)
+                elif previous_control_enabled and not control_enabled:
+                    if self._state == STATE_RECORDING:
+                        self._request_stop_locked(error=False)
             with self._lock:
                 state = self._state
                 writer_active = state == STATE_RECORDING

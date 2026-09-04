@@ -280,12 +280,15 @@ class Stage10FitsIdiTests(unittest.TestCase):
                 np.array([1.0], dtype=np.float32),
                 np.array([10.0], dtype=np.float32),
                 np.array([1.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([5.0], dtype=np.float32),
+                np.array([-30.0], dtype=np.float32),
             ]
             outputs = [np.zeros(1, dtype=np.float32) for _ in range(3)]
             block.work(inputs, outputs)
             self.assertEqual(block._state, writer_mod.STATE_ERROR)
 
-    def test_uv_logging_setter_starts_and_stops_writer(self):
+    def test_uv_logging_setter_does_not_start_writer_without_control_stream(self):
         gnuradio = types.ModuleType("gnuradio")
 
         class FakeSyncBlock:
@@ -305,16 +308,12 @@ class Stage10FitsIdiTests(unittest.TestCase):
             block = module.blk(uv_logging_enable="False", output_dir=tmp)
             self.assertEqual(block._state, writer_mod.STATE_OFF)
             block.set_uv_logging_enable("True")
-            self.assertEqual(block._state, writer_mod.STATE_RECORDING)
-            self.assertTrue(pathlib.Path(block._writer.partial_file).exists())
+            self.assertEqual(block._state, writer_mod.STATE_OFF)
+            self.assertIsNone(block._writer)
             block.set_uv_logging_enable("False")
-            deadline = Time.now().unix + 5.0
-            while block._state == writer_mod.STATE_FINALIZING and Time.now().unix < deadline:
-                __import__("time").sleep(0.05)
-            self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
-            self.assertTrue(pathlib.Path(block._writer.final_file).exists())
+            self.assertEqual(block._state, writer_mod.STATE_OFF)
 
-    def test_control_stream_starts_recording_from_work(self):
+    def test_control_stream_rising_and_falling_edges_control_recording(self):
         gnuradio = types.ModuleType("gnuradio")
 
         class FakeSyncBlock:
@@ -331,24 +330,46 @@ class Stage10FitsIdiTests(unittest.TestCase):
         sys.modules[spec.name] = module
         spec.loader.exec_module(module)
         with tempfile.TemporaryDirectory() as tmp:
-            block = module.blk(uv_logging_enable=False, output_dir=tmp)
-            inputs = [
+            block = module.blk(uv_logging_enable=True, output_dir=tmp)
+            off_inputs = [
+                np.array([2.0 + 3.0j], dtype=np.complex64),
+                np.array([97.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([10.0], dtype=np.float32),
+                np.array([0.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([18.3], dtype=np.float32),
+                np.array([-16.2], dtype=np.float32),
+            ]
+            outputs = [np.zeros(1, dtype=np.float32) for _ in range(3)]
+            block.work(off_inputs, outputs)
+            self.assertEqual(block._state, writer_mod.STATE_OFF)
+            self.assertIsNone(block._writer)
+            on_inputs = [
                 np.array([2.0 + 3.0j], dtype=np.complex64),
                 np.array([97.0], dtype=np.float32),
                 np.array([1.0], dtype=np.float32),
                 np.array([10.0], dtype=np.float32),
                 np.array([1.0], dtype=np.float32),
+                np.array([1.0], dtype=np.float32),
+                np.array([18.3], dtype=np.float32),
+                np.array([-16.2], dtype=np.float32),
             ]
-            outputs = [np.zeros(1, dtype=np.float32) for _ in range(3)]
-            block.work(inputs, outputs)
+            block.work(on_inputs, outputs)
             self.assertEqual(block._state, writer_mod.STATE_RECORDING)
             self.assertEqual(outputs[0][0], writer_mod.STATE_RECORDING)
-            block.set_uv_logging_enable(False)
+            self.assertIn("_Manual_B01.partial.fitsidi", pathlib.Path(block._writer.partial_file).name)
+            block.work(off_inputs, outputs)
             deadline = Time.now().unix + 5.0
             while block._state == writer_mod.STATE_FINALIZING and Time.now().unix < deadline:
                 __import__("time").sleep(0.05)
             self.assertEqual(block._state, writer_mod.STATE_COMPLETE)
             self.assertGreaterEqual(block._records_written, 1)
+            with fits.open(block._writer.final_file, memmap=False) as hdul:
+                source_row = hdul["SOURCE"].data[0]
+                self.assertEqual(source_row["SOURCE"].strip(), "Manual")
+                self.assertAlmostEqual(float(source_row["RAEPO"]), 18.3 * 15.0, places=4)
+                self.assertAlmostEqual(float(source_row["DECEPO"]), -16.2, places=4)
 
     def test_stage10_grc_derives_from_stage9_without_dsp_regression(self):
         stage9 = yaml.safe_load((ROOT / "grc" / "fx_interferometer_v1_stage9.grc").read_text())
@@ -363,12 +384,21 @@ class Stage10FitsIdiTests(unittest.TestCase):
         self.assertTrue(set(tuple(c) for c in stage9["connections"]).issubset(set(tuple(c) for c in stage10["connections"])))
         self.assertIn("fitsidi_visibility_recorder", stage10_blocks)
         self.assertIn("stage10_uv_logging_control_source", stage10_blocks)
+        self.assertIn("stage10_source_mode_control_source", stage10_blocks)
+        self.assertIn("stage10_manual_ra_control_source", stage10_blocks)
+        self.assertIn("stage10_manual_dec_control_source", stage10_blocks)
         self.assertEqual(stage10_blocks["uv_logging_enable"]["parameters"]["type"], "int")
         self.assertEqual(stage10_blocks["uv_logging_enable"]["parameters"]["value"], "0")
         self.assertEqual(stage10_blocks["uv_logging_enable"]["parameters"]["options"], "[0, 1]")
         self.assertEqual(stage10_blocks["stage10_uv_logging_control_source"]["parameters"]["offset"], "float(uv_logging_enable)")
+        self.assertEqual(stage10_blocks["stage10_source_mode_control_source"]["parameters"]["offset"], "float(source_mode)")
+        self.assertEqual(stage10_blocks["stage10_manual_ra_control_source"]["parameters"]["offset"], "float(manual_ra_hours)")
+        self.assertEqual(stage10_blocks["stage10_manual_dec_control_source"]["parameters"]["offset"], "float(manual_dec_deg)")
         connections = {tuple(c) for c in stage10["connections"]}
         self.assertIn(("stage10_uv_logging_control_source", "0", "fitsidi_visibility_recorder", "4"), connections)
+        self.assertIn(("stage10_source_mode_control_source", "0", "fitsidi_visibility_recorder", "5"), connections)
+        self.assertIn(("stage10_manual_ra_control_source", "0", "fitsidi_visibility_recorder", "6"), connections)
+        self.assertIn(("stage10_manual_dec_control_source", "0", "fitsidi_visibility_recorder", "7"), connections)
 
     def test_grc_embedded_recorder_fallback_instantiates_after_import_failure(self):
         stage10 = yaml.safe_load((ROOT / "grc" / "fx_interferometer_v1_stage10.grc").read_text())
