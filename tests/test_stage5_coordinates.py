@@ -143,7 +143,7 @@ class Stage5CoordinateTests(unittest.TestCase):
                 self.assertTrue(math.isfinite(value))
 
     def test_stage4_connections_remain_present(self):
-        grc_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage9.grc"
+        grc_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage10.grc"
         graph = yaml.safe_load(grc_path.read_text())
         connections = {tuple(connection) for connection in graph["connections"]}
         expected_stage4 = {
@@ -155,7 +155,7 @@ class Stage5CoordinateTests(unittest.TestCase):
         self.assertTrue(expected_stage4.issubset(connections))
 
     def test_stage5_does_not_replace_stage1_4_science_path(self):
-        grc_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage9.grc"
+        grc_path = pathlib.Path(__file__).resolve().parents[1] / "grc" / "fx_interferometer_v1_stage10.grc"
         graph = yaml.safe_load(grc_path.read_text())
         connections = {tuple(connection) for connection in graph["connections"]}
         expected_science_path = {

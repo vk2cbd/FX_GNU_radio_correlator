@@ -3,7 +3,7 @@
 GNU Radio FX radio interferometer for radio astronomy.
 
 ## Current target
-Stage 1-3 coherent two-channel FX engine using one Ettus B210:
+Stage 10 UVFITS visibility recording for the single-B210 FX interferometer:
 
 - Ubuntu 24.04.4
 - GNU Radio 3.10.9.2
@@ -22,8 +22,12 @@ See `FX_CORRELATOR_SPEC.md` for the authoritative design.
 ## Development principle
 Do high-rate DSP in standard compiled GNU Radio blocks. Only move into custom Python after the FX spectra have been accumulated to roughly 10 updates/s.
 
-## First milestone
-Create `grc/fx_interferometer_v1_stage9.grc` containing:
+## Current flowgraph
+The canonical GNU Radio Companion source is:
+
+`grc/fx_interferometer_v1_stage10.grc`
+
+It now contains the staged Version 1 chain:
 
 1. one UHD USRP Source with channels `[0,1]`
 2. Stream-to-Vector on each RX
@@ -31,8 +35,9 @@ Create `grc/fx_interferometer_v1_stage9.grc` containing:
 4. auto spectra `|X0|^2`, `|X1|^2`
 5. complex cross spectrum `X0 * conj(X1)`
 6. 0.1 s vector accumulation
-7. two auto-spectrum display traces
-8. cross-spectrum magnitude display
-9. cross-spectrum phase display
+7. astronomy coordinates and surveyed-baseline geometry
+8. delay-slope correction and fringe stopping
+9. coherent visibility integration and phase-stability advisory displays
+10. optional Stage-10 UVFITS recording of integrated stopped visibility
 
-Do not add astronomy geometry, fringe stopping, calibration or logging until this engine passes coherent-source and known-delay tests.
+Recording defaults OFF. Do not add calibration solving, rho, imaging, multi-B210 support, or Stage 11+ behaviour until Stage 10 is validated.

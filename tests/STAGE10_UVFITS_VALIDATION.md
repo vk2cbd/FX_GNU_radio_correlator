@@ -151,7 +151,7 @@ This is software validation only. It does not prove B210 hardware or on-sky reco
 3. Open the authoritative GRC file:
 
    ```bash
-   gnuradio-companion grc/fx_interferometer_v1_stage9.grc
+   gnuradio-companion grc/fx_interferometer_v1_stage10.grc
    ```
 
 4. Generate the flowgraph normally in GNU Radio Companion. Confirm the new Stage-10 controls and status sink are visible.

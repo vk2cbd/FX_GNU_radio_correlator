@@ -15,7 +15,7 @@ The Windows development checkout is not proof of GNU Radio, UHD, or B210 validit
 
 Validate only the Stage 1-3 coherent FX engine in:
 
-`grc/fx_interferometer_v1_stage9.grc`
+`grc/fx_interferometer_v1_stage10.grc`
 
 Do not add geometry, delay correction, fringe stopping, rho, calibration, logging, imaging, or OOT modules during this validation.
 
@@ -41,17 +41,17 @@ Do not add geometry, delay correction, fringe stopping, rho, calibration, loggin
 2. From the repository root, inspect the GRC file:
 
    ```bash
-   sed -n '1,240p' grc/fx_interferometer_v1_stage9.grc
+   sed -n '1,240p' grc/fx_interferometer_v1_stage10.grc
    ```
 
 3. Open it in GNU Radio Companion:
 
    ```bash
-   gnuradio-companion grc/fx_interferometer_v1_stage9.grc
+   gnuradio-companion grc/fx_interferometer_v1_stage10.grc
    ```
 
 4. Confirm the graph opens without missing-block errors.
-5. Confirm the generated top block is named `fx_interferometer_v1_stage9`.
+5. Confirm the generated top block is named `fx_interferometer_v1_stage10`.
 
 ## B. Check GRC Compatibility
 
@@ -74,7 +74,7 @@ Do not add geometry, delay correction, fringe stopping, rho, calibration, loggin
 4. Generate Python from the flowgraph:
 
    ```bash
-   grcc grc/fx_interferometer_v1_stage9.grc
+   grcc grc/fx_interferometer_v1_stage10.grc
    ```
 
 5. Record whether `grcc` succeeds and keep any warnings/errors.

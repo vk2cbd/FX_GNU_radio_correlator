@@ -105,7 +105,7 @@ On the Ubuntu GNU Radio 3.10.9.2 system:
 cd ~/GNU_Radio/FX_GNU_radio_correlator
 git checkout stage1-3-fx-engine
 git pull origin stage1-3-fx-engine
-gnuradio-companion grc/fx_interferometer_v1_stage9.grc
+gnuradio-companion grc/fx_interferometer_v1_stage10.grc
 ```
 
 Confirm the flowgraph opens without GRC errors and contains:

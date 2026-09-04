@@ -303,7 +303,7 @@ class Stage10UVFITSTests(unittest.TestCase):
         self.assertEqual(block._state, writer.STATE_ERROR)
 
     def test_grc_stage10_controls_blocks_and_connections(self):
-        graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
+        graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage10.grc").read_text())
         blocks = {block["name"]: block for block in graph["blocks"]}
         for name in {
             "observation_name",
@@ -333,8 +333,15 @@ class Stage10UVFITSTests(unittest.TestCase):
         self.assertFalse(any(c[2] == "uvfits_visibility_recorder" and c[0] in {"astronomy_coordinate_engine", "baseline_geometry_engine"} for c in connections))
 
     def test_existing_grc_block_layout_and_connections_are_preserved(self):
-        old = yaml.safe_load(subprocess.check_output(["git", "show", "HEAD:grc/fx_interferometer_v1_stage9.grc"]))
-        new = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage9.grc").read_text())
+        try:
+            old_bytes = subprocess.check_output(
+                ["git", "show", "HEAD:grc/fx_interferometer_v1_stage10.grc"],
+                stderr=subprocess.DEVNULL,
+            )
+        except subprocess.CalledProcessError:
+            old_bytes = subprocess.check_output(["git", "show", "HEAD:grc/fx_interferometer_v1_stage9.grc"])
+        old = yaml.safe_load(old_bytes)
+        new = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage10.grc").read_text())
         old_blocks = {block["name"]: block for block in old["blocks"]}
         new_blocks = {block["name"]: block for block in new["blocks"]}
         changed = []
