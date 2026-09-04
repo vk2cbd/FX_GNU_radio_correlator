@@ -41,22 +41,7 @@ blocks:
   parameters:
     alias: ''
     comment: 'Stage 10 operator-settings loader. Missing/corrupt settings fall back to project defaults.'
-    imports: |
-      import os as _fx_os
-      import sys as _fx_sys
-      for _fx_path in [
-          _fx_os.path.dirname(_fx_os.path.abspath(__file__)),
-          _fx_os.getcwd(),
-          _fx_os.path.join(_fx_os.getcwd(), "grc"),
-      ]:
-          if _fx_path and _fx_os.path.isdir(_fx_path) and _fx_path not in _fx_sys.path:
-              _fx_sys.path.insert(0, _fx_path)
-      try:
-          from fx_interferometer_v1_stage10_settings import load_setting as fx_settings_load
-      except Exception as _fx_settings_error:
-          def fx_settings_load(_key, _default=None):
-              return _default
-          print(f"Stage 10 settings load disabled: {_fx_settings_error}", flush=True)
+    imports: import fx_interferometer_v1_stage10_settings
   states:
     bus_sink: false
     bus_source: false
@@ -82,7 +67,7 @@ blocks:
   id: variable
   parameters:
     comment: First-stage accumulation time in seconds.
-    value: fx_settings_load('accum_time', 0.1)
+    value: fx_interferometer_v1_stage10_settings.load_setting('accum_time', 0.1)
   states:
     bus_sink: false
     bus_source: false
@@ -108,7 +93,7 @@ blocks:
   id: variable
   parameters:
     comment: Default FFT length. Stage 1-3 default is 4096.
-    value: fx_settings_load('fft_size', 4096)
+    value: fx_interferometer_v1_stage10_settings.load_setting('fft_size', 4096)
   states:
     bus_sink: false
     bus_source: false
@@ -151,7 +136,7 @@ blocks:
     options: '[True, False]'
     orient: Qt.QHBoxLayout
     type: bool
-    value: fx_settings_load('delay_correction_enable', True)
+    value: fx_interferometer_v1_stage10_settings.load_setting('delay_correction_enable', True)
     widget: combo_box
   states:
     bus_sink: false
@@ -169,7 +154,7 @@ blocks:
     gui_hint: ''
     label: Instrument Delay (ns)
     type: string
-    value: fx_settings_load('instrument_delay_ns', '0.0')
+    value: fx_interferometer_v1_stage10_settings.load_setting('instrument_delay_ns', '0.0')
   states:
     bus_sink: false
     bus_source: false
@@ -182,7 +167,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 8 broadband visibility edge exclusion percentage from each end of corrected spectrum.'
-    value: fx_settings_load('visibility_edge_exclude_pct', 20.0)
+    value: fx_interferometer_v1_stage10_settings.load_setting('visibility_edge_exclude_pct', 20.0)
   states:
     bus_sink: false
     bus_source: false
@@ -225,7 +210,7 @@ blocks:
     options: '[True, False]'
     orient: Qt.QHBoxLayout
     type: bool
-    value: fx_settings_load('fringe_stop_enable', True)
+    value: fx_interferometer_v1_stage10_settings.load_setting('fringe_stop_enable', True)
     widget: combo_box
   states:
     bus_sink: false
@@ -256,7 +241,7 @@ blocks:
     options: '[-1, 1]'
     orient: Qt.QHBoxLayout
     type: int
-    value: fx_settings_load('fringe_stop_sign', -1)
+    value: fx_interferometer_v1_stage10_settings.load_setting('fringe_stop_sign', -1)
     widget: combo_box
   states:
     bus_sink: false
@@ -274,7 +259,7 @@ blocks:
     gui_hint: ''
     label: Coherent Integration
     type: string
-    value: fx_settings_load('integration_time_s', '1.0')
+    value: fx_interferometer_v1_stage10_settings.load_setting('integration_time_s', '1.0')
   states:
     bus_sink: false
     bus_source: false
@@ -291,7 +276,7 @@ blocks:
     gui_hint: ''
     label: Observation Name
     type: string
-    value: fx_settings_load('observation_name', 'observation')
+    value: fx_interferometer_v1_stage10_settings.load_setting('observation_name', 'observation')
   states:
     bus_sink: false
     bus_source: false
@@ -308,7 +293,7 @@ blocks:
     gui_hint: ''
     label: UVFITS Output Directory
     type: string
-    value: fx_settings_load('uvfits_output_dir', '~/FX_Correlator_Data')
+    value: fx_interferometer_v1_stage10_settings.load_setting('uvfits_output_dir', '~/FX_Correlator_Data')
   states:
     bus_sink: false
     bus_source: false
@@ -384,7 +369,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 9 phase-stability advisor native phase-fit history window, seconds.'
-    value: fx_settings_load('phase_rate_fit_window_s', 60.0)
+    value: fx_interferometer_v1_stage10_settings.load_setting('phase_rate_fit_window_s', 60.0)
   states:
     bus_sink: false
     bus_source: false
@@ -397,7 +382,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 9 rate-based coherence target percentage for recommended maximum integration.'
-    value: fx_settings_load('coherence_target_pct', 95.0)
+    value: fx_interferometer_v1_stage10_settings.load_setting('coherence_target_pct', 95.0)
   states:
     bus_sink: false
     bus_source: false
@@ -410,7 +395,7 @@ blocks:
   id: variable
   parameters:
     comment: RX0 / antenna 0 / 2.4 m commissioning gain, dB.
-    value: fx_settings_load('gain0', 40)
+    value: fx_interferometer_v1_stage10_settings.load_setting('gain0', 40)
   states:
     bus_sink: false
     bus_source: false
@@ -423,7 +408,7 @@ blocks:
   id: variable
   parameters:
     comment: RX1 / antenna 1 / 1.7 m commissioning gain, dB.
-    value: fx_settings_load('gain1', 40)
+    value: fx_interferometer_v1_stage10_settings.load_setting('gain1', 40)
   states:
     bus_sink: false
     bus_source: false
@@ -466,7 +451,7 @@ blocks:
     gui_hint: ''
     label: Manual Dec (deg)
     type: string
-    value: fx_settings_load('manual_dec_deg', '-30.0')
+    value: fx_interferometer_v1_stage10_settings.load_setting('manual_dec_deg', '-30.0')
   states:
     bus_sink: false
     bus_source: false
@@ -483,7 +468,7 @@ blocks:
     gui_hint: ''
     label: Manual RA (h)
     type: string
-    value: fx_settings_load('manual_ra_hours', '5.0')
+    value: fx_interferometer_v1_stage10_settings.load_setting('manual_ra_hours', '5.0')
   states:
     bus_sink: false
     bus_source: false
@@ -509,7 +494,7 @@ blocks:
   id: variable
   parameters:
     comment: Stage 5 observing site height above ellipsoid/metres, initial value.
-    value: fx_settings_load('site_height_m', 70.0)
+    value: fx_interferometer_v1_stage10_settings.load_setting('site_height_m', 70.0)
   states:
     bus_sink: false
     bus_source: false
@@ -522,7 +507,7 @@ blocks:
   id: variable
   parameters:
     comment: Stage 5 observing site latitude, degrees north positive.
-    value: fx_settings_load('site_lat_deg', -32.724)
+    value: fx_interferometer_v1_stage10_settings.load_setting('site_lat_deg', -32.724)
   states:
     bus_sink: false
     bus_source: false
@@ -535,7 +520,7 @@ blocks:
   id: variable
   parameters:
     comment: Stage 5 observing site longitude, degrees east positive.
-    value: fx_settings_load('site_lon_deg', 152.130167)
+    value: fx_interferometer_v1_stage10_settings.load_setting('site_lon_deg', 152.130167)
   states:
     bus_sink: false
     bus_source: false
@@ -548,7 +533,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 6 B01 = r1-r0 east component, metres.'
-    value: fx_settings_load('baseline_e_m', -5.785)
+    value: fx_interferometer_v1_stage10_settings.load_setting('baseline_e_m', -5.785)
   states:
     bus_sink: false
     bus_source: false
@@ -561,7 +546,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 6 B01 = r1-r0 north component, metres. Current working N is astronomically refined.'
-    value: fx_settings_load('baseline_n_m', 0.095)
+    value: fx_interferometer_v1_stage10_settings.load_setting('baseline_n_m', 0.095)
   states:
     bus_sink: false
     bus_source: false
@@ -574,7 +559,7 @@ blocks:
   id: variable
   parameters:
     comment: 'Stage 6 B01 = r1-r0 up component, metres.'
-    value: fx_settings_load('baseline_u_m', 0.580)
+    value: fx_interferometer_v1_stage10_settings.load_setting('baseline_u_m', 0.580)
   states:
     bus_sink: false
     bus_source: false
@@ -614,7 +599,7 @@ blocks:
   id: variable
   parameters:
     comment: Nominal astronomical sky centre frequency, Hz.
-    value: fx_settings_load('sky_cf', 4.800e9)
+    value: fx_interferometer_v1_stage10_settings.load_setting('sky_cf', 4.800e9)
   states:
     bus_sink: false
     bus_source: false
@@ -644,7 +629,7 @@ blocks:
     options: '[0, 1, 2]'
     orient: Qt.QHBoxLayout
     type: int
-    value: fx_settings_load('source_mode', 0)
+    value: fx_interferometer_v1_stage10_settings.load_setting('source_mode', 0)
     widget: combo_box
   states:
     bus_sink: false
