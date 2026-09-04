@@ -289,21 +289,28 @@ blocks:
     rotation: 0
     state: enabled
 - name: record_uvfits
-  id: variable_qtgui_toggle_button_msg
+  id: variable_qtgui_chooser
   parameters:
-    comment: 'Stage 10 UV logging toggle. Recording always starts OFF and is not persisted.'
+    comment: 'Stage 10 UV logging control. Disabled by default. Enabled starts a new UVFITS observation; Disabled finalizes it.'
     gui_hint: ''
-    initPressed: 'False'
-    label: Start / Stop UV Logging
-    outputmsgname: value
-    pressBackgroundColor: default
-    pressFontColor: default
-    pressed: 'True'
-    relBackgroundColor: default
-    relFontColor: default
-    released: 'False'
+    label: UV Logging
+    label0: Disabled
+    label1: Enabled
+    label2: ''
+    label3: ''
+    label4: ''
+    labels: '[]'
+    num_opts: '2'
+    option0: 'False'
+    option1: 'True'
+    option2: '2'
+    option3: '3'
+    option4: '4'
+    options: '[False, True]'
+    orient: Qt.QHBoxLayout
     type: bool
     value: 'False'
+    widget: combo_box
   states:
     bus_sink: false
     bus_source: false

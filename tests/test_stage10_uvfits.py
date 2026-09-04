@@ -373,7 +373,11 @@ class Stage10UVFITSTests(unittest.TestCase):
             "stage10_recording_status_sink",
         }:
             self.assertIn(name, blocks)
-        self.assertEqual(blocks["record_uvfits"]["id"], "variable_qtgui_toggle_button_msg")
+        self.assertEqual(blocks["record_uvfits"]["id"], "variable_qtgui_chooser")
+        self.assertEqual(blocks["record_uvfits"]["parameters"]["label"], "UV Logging")
+        self.assertEqual(blocks["record_uvfits"]["parameters"]["label0"], "Disabled")
+        self.assertEqual(blocks["record_uvfits"]["parameters"]["label1"], "Enabled")
+        self.assertEqual(blocks["record_uvfits"]["parameters"]["widget"], "combo_box")
         self.assertEqual(blocks["record_uvfits"]["parameters"]["value"], "False")
         for block in blocks.values():
             value = str(block.get("parameters", {}).get("value", ""))

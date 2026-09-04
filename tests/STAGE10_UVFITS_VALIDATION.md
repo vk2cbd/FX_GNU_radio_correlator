@@ -24,9 +24,9 @@ The GRC file exposes:
 - `Source`: `Sun`, `Moon`, `Manual RA/Dec`
 - `Observation Name`
 - `UVFITS Output Directory`
-- `Start / Stop UV Logging`
+- `UV Logging`: `Disabled`, `Enabled`
 
-Recording defaults OFF. Pressing the UV logging toggle starts a new observation. Pressing it again stops intake and finalizes the UVFITS file.
+Recording defaults OFF. Selecting `Enabled` starts a new observation. Selecting `Disabled` stops intake and finalizes the UVFITS file.
 
 The GRC status sink shows:
 
@@ -182,9 +182,9 @@ This is software validation only. It does not prove B210 hardware or on-sky reco
 
 9. Set an observation name and output directory. Leave UV logging OFF while checking spectra and visibility.
 
-10. Press `Start / Stop UV Logging`. Confirm the terminal prints the output filename and the status state becomes `1`.
+10. Set `UV Logging` to `Enabled`. Confirm the terminal prints the output filename and the status state becomes `1`.
 
-11. Record a short test, then press the UV logging toggle again. Confirm:
+11. Record a short test, then set `UV Logging` to `Disabled`. Confirm:
 
    - state becomes `3`
    - Records Captured is non-zero
@@ -246,6 +246,6 @@ This is software validation only. It does not prove B210 hardware or on-sky reco
 - Sun and Moon source modes cannot yet be claimed as Stage-10 accepted for UVFITS with `pyuvdata 3.2.7`; recording is explicitly rejected rather than silently freezing a moving ephemeris phase centre.
 - Timestamps are host-clock estimates of integration-centre UTC, not PPS/sample-accurate hardware timestamps.
 - The current output filename is terminal/journal visible, not dynamically displayed as text in the GRC GUI.
-- The standard GRC toggle button uses a static label in this implementation; the Recording State sink remains the authoritative OFF/RECORDING/FINALIZING/COMPLETE/ERROR display.
+- The UV logging control is a standard GRC combo box for GNU Radio Companion compatibility; the Recording State sink remains the authoritative OFF/RECORDING/FINALIZING/COMPLETE/ERROR display.
 - Visibility units are `uncalib`; the file does not claim Jy or Stokes I.
 - No B210 hardware validation is implied by the Windows software tests.
