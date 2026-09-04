@@ -3510,9 +3510,10 @@ blocks:
       try:
           from fx_interferometer_v1_stage10_fitsidi_recorder import blk as _stage10_recorder_blk
       except Exception as _stage10_import_error:
+          _stage10_import_error_text = str(_stage10_import_error)
           class blk(gr.sync_block):
               def __init__(self, *args, **kwargs):
-                  print(f"Stage 10 FITS-IDI recorder import failed: {_stage10_import_error}", flush=True)
+                  print(f"Stage 10 FITS-IDI recorder import failed: {_stage10_import_error_text}", flush=True)
                   gr.sync_block.__init__(
                       self,
                       name="FITS-IDI Visibility Recorder",

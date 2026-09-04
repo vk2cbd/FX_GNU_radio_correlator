@@ -279,6 +279,30 @@ class Stage10FitsIdiTests(unittest.TestCase):
         self.assertTrue(set(tuple(c) for c in stage9["connections"]).issubset(set(tuple(c) for c in stage10["connections"])))
         self.assertIn("fitsidi_visibility_recorder", stage10_blocks)
 
+    def test_grc_embedded_recorder_fallback_instantiates_after_import_failure(self):
+        stage10 = yaml.safe_load((ROOT / "grc" / "fx_interferometer_v1_stage10.grc").read_text())
+        block = next(block for block in stage10["blocks"] if block["name"] == "fitsidi_visibility_recorder")
+        source = block["parameters"]["_source_code"]
+
+        gnuradio = types.ModuleType("gnuradio")
+
+        class FakeSyncBlock:
+            def __init__(self, *args, **kwargs):
+                self.init_args = (args, kwargs)
+
+        gnuradio.gr = types.SimpleNamespace(sync_block=FakeSyncBlock)
+        sys.modules["gnuradio"] = gnuradio
+        sys.modules["gnuradio.gr"] = gnuradio.gr
+        original_path = list(sys.path)
+        sys.path = [entry for entry in sys.path if str(ROOT / "grc") not in entry]
+        try:
+            namespace = {"__file__": str(ROOT / "grc" / "fx_interferometer_v1_stage10.py")}
+            exec(source, namespace)
+            instance = namespace["blk"]()
+        finally:
+            sys.path = original_path
+        self.assertIsInstance(instance, FakeSyncBlock)
+
     def test_existing_stage9_regression_tests_still_pass_target_files(self):
         output = subprocess.check_output([sys.executable, "-m", "pytest", "tests/test_stage9_integration_stability.py"], cwd=ROOT)
         self.assertIn(b"passed", output)
