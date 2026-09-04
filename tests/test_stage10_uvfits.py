@@ -284,6 +284,38 @@ class Stage10UVFITSTests(unittest.TestCase):
             self.assertEqual(block._state, writer.STATE_COMPLETE)
             self.assertEqual(len(list(pathlib.Path(tmp).glob("*.uvfits"))), 1)
 
+    def test_grc_recorder_fallback_instantiates_when_module_import_fails(self):
+        graph = yaml.safe_load((ROOT / "grc/fx_interferometer_v1_stage10.grc").read_text())
+        code = next(
+            block for block in graph["blocks"] if block["name"] == "uvfits_visibility_recorder"
+        )["parameters"]["_source_code"]
+        old_path = list(sys.path)
+        old_cwd = pathlib.Path.cwd()
+        old_gnuradio = sys.modules.get("gnuradio")
+        old_gr = sys.modules.get("gnuradio.gr")
+        with tempfile.TemporaryDirectory() as tmp:
+            try:
+                import os
+
+                sys.path = [path for path in sys.path if str(ROOT) not in path]
+                install_gnuradio_stub()
+                os.chdir(tmp)
+                namespace = {"__file__": str(pathlib.Path(tmp) / "dummy_generated.py")}
+                exec(code, namespace)
+                block = namespace["blk"]()
+                self.assertIn("fx_interferometer_v1_stage10_uvfits_recorder", block._error)
+            finally:
+                os.chdir(old_cwd)
+                sys.path = old_path
+                if old_gnuradio is None:
+                    sys.modules.pop("gnuradio", None)
+                else:
+                    sys.modules["gnuradio"] = old_gnuradio
+                if old_gr is None:
+                    sys.modules.pop("gnuradio.gr", None)
+                else:
+                    sys.modules["gnuradio.gr"] = old_gr
+
     def test_queue_overflow_enters_error(self):
         class FullQueue:
             def put_nowait(self, _item):

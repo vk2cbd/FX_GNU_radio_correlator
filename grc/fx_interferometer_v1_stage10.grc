@@ -3158,6 +3158,7 @@ blocks:
       try:
           from fx_interferometer_v1_stage10_uvfits_recorder import blk
       except Exception as _stage10_import_error:
+          _stage10_import_error_text = str(_stage10_import_error)
           import numpy as np
           from gnuradio import gr
 
@@ -3193,11 +3194,11 @@ blocks:
                   polarization="xx",
                   software_commit="unknown",
                   gnuradio_version="3.10.9.2",
-                  queue_max_records=256,
-              ):
-                  self._error = _stage10_import_error
+              queue_max_records=256,
+          ):
+                  self._error = _stage10_import_error_text
                   print(
-                      f"Stage 10 UVFITS recorder import failed: {_stage10_import_error}. "
+                      f"Stage 10 UVFITS recorder import failed: {_stage10_import_error_text}. "
                       "Check that grc/fx_interferometer_v1_stage10_uvfits_recorder.py "
                       "and grc/fx_interferometer_v1_stage10_uvfits_writer.py are present.",
                       flush=True,
