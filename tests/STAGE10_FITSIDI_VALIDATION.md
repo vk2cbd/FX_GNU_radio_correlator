@@ -38,6 +38,19 @@ Verify:
 - GRC Source = Sun produces `source_mode: 0` and `source_name: "Sun"`.
 - GRC Source = Manual RA/Dec produces `source_mode: 1` and `source_name: "Manual"`.
 - Switching back to Sun returns immediately to `source_name: "Sun"`.
+- `schema_version` is `2`.
+- `metadata_valid` is `true`.
+- `integration_center_utc` is `emitted_utc - effective_integration_s/2`.
+- `retained_fft_bins` and `effective_correlated_bandwidth_hz` match the live
+  `visibility_edge_exclude_pct`, `fft_size`, and `samp_rate`.
+
+Use these edge-exclusion checks:
+
+```text
+5.0%  -> retained_fft_bins = 3688, effective_correlated_bandwidth_hz = 27660000
+12.5% -> retained_fft_bins = 3072, effective_correlated_bandwidth_hz = 23040000
+20.0% -> retained_fft_bins = 2458, effective_correlated_bandwidth_hz = 18435000
+```
 
 ## Start Test
 
@@ -52,6 +65,8 @@ Expected:
 - Exactly one `*.partial.fitsidi` appears.
 - The filename source token matches the live packet source.
 - No pre-start packets are back-filled.
+- If observation-defining metadata changes while recording, the logger finalizes
+  the current file and enters `ERROR_CONFIG_CHANGED`.
 
 ## Stop Test
 
@@ -73,8 +88,8 @@ Inspect a final or partial file with:
 python3 tools/inspect_stage10_fitsidi.py ~/FX_Correlator_Data/<file>.fitsidi
 ```
 
-The reported `CHAN_BW` is the Stage-8 retained continuum bandwidth, not the raw
-B210 sample rate. With the current defaults this is:
+The reported `CHAN_BW` and `TOTAL_BANDWIDTH` are the Stage-8 retained continuum
+bandwidth, not the raw B210 sample rate. With the current defaults this is:
 
 ```text
 sample rate = 30.72 MHz

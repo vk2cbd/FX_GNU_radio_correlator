@@ -7,7 +7,6 @@ import socket
 import sys
 import threading
 from dataclasses import dataclass
-from datetime import datetime
 
 from astropy.time import Time
 
@@ -15,9 +14,12 @@ from stage10_fitsidi_writer import FitsIdiWriter, source_metadata, uvw_project_m
 from stage10_protocol import (
     DEFAULT_HOST,
     DEFAULT_PORT,
+    bandwidth_metadata,
     decode_line,
     packet_to_writer_config,
     packet_to_writer_record,
+    parse_iso_z,
+    verify_packet_metadata,
 )
 
 
@@ -26,6 +28,34 @@ STATE_RECORDING = "RECORDING"
 STATE_FINALIZING = "FINALIZING"
 STATE_COMPLETE = "COMPLETE"
 STATE_ERROR = "ERROR"
+STATE_ERROR_CONFIG_CHANGED = "ERROR_CONFIG_CHANGED"
+
+
+OBSERVATION_METADATA_FIELDS = (
+    "source_mode",
+    "source_name",
+    "manual_ra_hours",
+    "manual_dec_deg",
+    "site_lat_deg",
+    "site_lon_deg",
+    "site_height_m",
+    "baseline_e_m",
+    "baseline_n_m",
+    "baseline_u_m",
+    "sky_cf_hz",
+    "samp_rate",
+    "fft_size",
+    "visibility_edge_exclude_pct",
+    "retained_fft_bins",
+    "effective_correlated_bandwidth_hz",
+    "instrument_delay_ns",
+    "delay_correction_enable",
+    "fringe_stop_enable",
+    "fringe_stop_sign",
+    "stokes_code",
+    "polarization_label",
+    "polarization_assumed",
+)
 
 
 @dataclass
@@ -40,6 +70,13 @@ class LiveSummary:
     u_m: float = math.nan
     v_m: float = math.nan
     w_m: float = math.nan
+    edge_pct: float = math.nan
+    retained_bins: int = 0
+    bandwidth_hz: float = math.nan
+    integration_s: float = math.nan
+    n_int: int = 0
+    emitted_utc: str = ""
+    center_utc: str = ""
 
 
 class Stage10LoggerController:
@@ -53,6 +90,7 @@ class Stage10LoggerController:
         self.current_file = ""
         self.last_error = ""
         self.last_packet = None
+        self.config_snapshot = None
         self.live = LiveSummary()
         self.writer = None
         self._lock = threading.RLock()
@@ -81,6 +119,7 @@ class Stage10LoggerController:
             if self.last_packet is None:
                 raise RuntimeError("no live Stage 10 packet has been received")
             pkt = dict(self.last_packet)
+            verify_packet_metadata(pkt)
             if pkt.get("source_name") == "INVALID":
                 raise RuntimeError("source_name is INVALID")
             if not bool(pkt.get("delay_correction_enable")):
@@ -92,6 +131,7 @@ class Stage10LoggerController:
             config = packet_to_writer_config(pkt, self.observation_name, self.output_dir)
             self.writer = FitsIdiWriter(config)
             self.writer.start()
+            self.config_snapshot = self._metadata_snapshot(pkt)
             self.current_file = self.writer.current_file
             self.records_written = 0
             self.state = STATE_RECORDING
@@ -109,6 +149,7 @@ class Stage10LoggerController:
             self.current_file = final_path
             self.records_written = writer.records_written
             self.state = STATE_COMPLETE
+            self.config_snapshot = None
             self._events.put(("complete", final_path))
         return final_path
 
@@ -140,6 +181,13 @@ class Stage10LoggerController:
                     self.live.connected = False
 
     def _handle_packet(self, packet):
+        try:
+            verify_packet_metadata(packet)
+        except Exception as exc:
+            with self._lock:
+                self.last_error = str(exc)
+            self._events.put(("error", str(exc)))
+            return
         real = float(packet["visibility_real"])
         imag = float(packet["visibility_imag"])
         amp = math.hypot(real, imag)
@@ -158,10 +206,29 @@ class Stage10LoggerController:
                 u_m=u_m,
                 v_m=v_m,
                 w_m=w_m,
+                edge_pct=float(packet["visibility_edge_exclude_pct"]),
+                retained_bins=int(packet["retained_fft_bins"]),
+                bandwidth_hz=float(packet["effective_correlated_bandwidth_hz"]),
+                integration_s=float(packet["effective_integration_s"]),
+                n_int=int(packet["n_int"]),
+                emitted_utc=str(packet["emitted_utc"]),
+                center_utc=str(packet["integration_center_utc"]),
             )
             recording = self.state == STATE_RECORDING and self.writer is not None
             writer = self.writer
+            snapshot = self.config_snapshot
         if recording:
+            mismatch = self._metadata_mismatch(snapshot, packet)
+            if mismatch is not None:
+                final_path = writer.stop()
+                with self._lock:
+                    self.current_file = final_path
+                    self.records_written = writer.records_written
+                    self.state = STATE_ERROR_CONFIG_CHANGED
+                    self.last_error = f"observation metadata changed during recording: {mismatch}"
+                    self.config_snapshot = None
+                self._events.put(("error", self.last_error))
+                return
             writer.add_record(packet_to_writer_record(packet))
             with self._lock:
                 self.records_written = writer.records_written + len(writer._chunk)
@@ -169,7 +236,7 @@ class Stage10LoggerController:
 
     def _packet_uvw(self, packet):
         config = packet_to_writer_config(packet, self.observation_name, self.output_dir)
-        t = Time(datetime.fromisoformat(str(packet["emitted_utc"]).replace("Z", "+00:00")), scale="utc")
+        t = Time(parse_iso_z(packet["integration_center_utc"]), scale="utc")
         meta = source_metadata(config, t)
         return uvw_project_m(
             meta["ha_hour"],
@@ -179,6 +246,58 @@ class Stage10LoggerController:
             float(packet["baseline_u_m"]),
             float(packet["site_lat_deg"]),
         )
+
+    def _metadata_snapshot(self, packet):
+        return {field: packet[field] for field in OBSERVATION_METADATA_FIELDS}
+
+    def _metadata_mismatch(self, snapshot, packet):
+        if snapshot is None:
+            return None
+        for field, old in snapshot.items():
+            new = packet.get(field)
+            if isinstance(old, float) or isinstance(new, float):
+                try:
+                    if not math.isclose(float(old), float(new), rel_tol=1e-9, abs_tol=1e-6):
+                        return field
+                    continue
+                except (TypeError, ValueError):
+                    pass
+            if old != new:
+                return field
+        return None
+
+    def live_metadata_text(self):
+        with self._lock:
+            packet = dict(self.last_packet) if self.last_packet else None
+        if not packet:
+            return "No live Stage 10 packet has been received."
+        derived = bandwidth_metadata(packet["samp_rate"], packet["fft_size"], packet["visibility_edge_exclude_pct"])
+        lines = [
+            f"schema_version: {packet['schema_version']}",
+            f"metadata_valid: {packet['metadata_valid']}",
+            f"source: {packet['source_name']} ({packet['source_mode']})",
+            f"site: lat={packet['site_lat_deg']} lon={packet['site_lon_deg']} height={packet['site_height_m']} m",
+            f"baseline ENU: E={packet['baseline_e_m']} N={packet['baseline_n_m']} U={packet['baseline_u_m']} m",
+            f"sky_cf_hz: {packet['sky_cf_hz']}",
+            f"samp_rate: {packet['samp_rate']}",
+            f"fft_size: {packet['fft_size']}",
+            f"visibility_edge_exclude_pct: {packet['visibility_edge_exclude_pct']}",
+            f"retained_fft_bins: {packet['retained_fft_bins']} (local check {derived['retained_fft_bins']})",
+            "effective_correlated_bandwidth_hz: "
+            f"{packet['effective_correlated_bandwidth_hz']} (local check {derived['effective_correlated_bandwidth_hz']})",
+            f"instrument_delay_ns: {packet['instrument_delay_ns']}",
+            f"delay_correction_enable: {packet['delay_correction_enable']}",
+            f"fringe_stop_enable: {packet['fringe_stop_enable']}",
+            f"fringe_stop_sign: {packet['fringe_stop_sign']}",
+            f"stokes_code: {packet['stokes_code']}",
+            f"polarization_label: {packet['polarization_label']}",
+            f"polarization_assumed: {packet['polarization_assumed']}",
+            f"effective_integration_s: {packet['effective_integration_s']}",
+            f"n_int: {packet['n_int']}",
+            f"emitted_utc: {packet['emitted_utc']}",
+            f"integration_center_utc: {packet['integration_center_utc']}",
+        ]
+        return "\n".join(lines)
 
 
 def run_console(args):
@@ -198,8 +317,11 @@ def run_console(args):
                     return
                 elif command == "status":
                     pass
+                elif command in ("metadata", "meta"):
+                    print(controller.live_metadata_text())
+                    continue
                 else:
-                    print("Commands: start, stop, status, quit")
+                    print("Commands: start, stop, status, metadata, quit")
                     continue
             except Exception as exc:
                 controller.last_error = str(exc)
@@ -241,6 +363,13 @@ def run_qt(args):
         "Live u",
         "Live v",
         "Live w",
+        "Edge Exclusion",
+        "Retained FFT Bins",
+        "Effective Correlated BW",
+        "Effective Integration",
+        "N_int",
+        "Emitted UTC",
+        "Integration Centre UTC",
         "Recording State",
         "Records Written",
         "Current File",
@@ -255,6 +384,8 @@ def run_qt(args):
     form.addRow("Output Directory:", out)
     button = QtWidgets.QPushButton("Start FITS-IDI Recording")
     form.addRow(button)
+    metadata_button = QtWidgets.QPushButton("Print Live Metadata")
+    form.addRow(metadata_button)
 
     def on_button():
         controller.observation_name = obs.text().strip() or "obs1"
@@ -269,6 +400,11 @@ def run_qt(args):
 
     button.clicked.connect(on_button)
 
+    def on_metadata():
+        print(controller.live_metadata_text(), flush=True)
+
+    metadata_button.clicked.connect(on_metadata)
+
     def update():
         with controller._lock:
             live = controller.live
@@ -282,6 +418,13 @@ def run_qt(args):
             fields["Live u"].setText(f"{live.u_m:.6f} m")
             fields["Live v"].setText(f"{live.v_m:.6f} m")
             fields["Live w"].setText(f"{live.w_m:.6f} m")
+            fields["Edge Exclusion"].setText(f"{live.edge_pct:.6g} %")
+            fields["Retained FFT Bins"].setText(str(live.retained_bins))
+            fields["Effective Correlated BW"].setText(f"{live.bandwidth_hz / 1e6:.6f} MHz")
+            fields["Effective Integration"].setText(f"{live.integration_s:.6g} s")
+            fields["N_int"].setText(str(live.n_int))
+            fields["Emitted UTC"].setText(live.emitted_utc)
+            fields["Integration Centre UTC"].setText(live.center_utc)
             fields["Recording State"].setText(controller.state)
             fields["Records Written"].setText(str(controller.records_written))
             fields["Current File"].setText(controller.current_file)

@@ -33,6 +33,20 @@ def base_config(tmpdir):
     return cfg
 
 
+def assert_frequency_metadata(testcase, final_path, edge_pct, retained_bins, bandwidth_hz):
+    with fits.open(final_path, memmap=False) as hdul:
+        freq = hdul["FREQUENCY"]
+        testcase.assertEqual(freq.header["REF_FREQ"], 4.800e9)
+        testcase.assertEqual(freq.header["SAMP_HZ"], 30.72e6)
+        testcase.assertEqual(freq.header["FFT_LEN"], 4096)
+        testcase.assertEqual(freq.header["EDGEPCT"], edge_pct)
+        testcase.assertEqual(freq.header["N_USED"], retained_bins)
+        testcase.assertEqual(freq.header["CHAN_BW"], bandwidth_hz)
+        testcase.assertEqual(freq.header["EFF_BW"], bandwidth_hz)
+        testcase.assertEqual(float(np.asarray(freq.data["CH_WIDTH"][0]).reshape(-1)[0]), bandwidth_hz)
+        testcase.assertEqual(float(np.asarray(freq.data["TOTAL_BANDWIDTH"][0]).reshape(-1)[0]), bandwidth_hz)
+
+
 def add_records(writer, count, start="2026-09-04T00:00:00", project_uvw=(1.0, 2.0, 3.0)):
     t0 = Time(start, scale="utc")
     for idx in range(count):
@@ -128,23 +142,50 @@ class Stage10FitsIdiTests(unittest.TestCase):
             summary = writer_mod.validate_fitsidi_file(final_path, expected_records=27)
             self.assertEqual(summary["records"], 27)
             self.assertEqual(summary["uv_chunks"], 3)
-            with fits.open(final_path, memmap=False) as hdul:
-                freq = hdul["FREQUENCY"]
-                self.assertEqual(freq.header["REF_FREQ"], 4.800e9)
-                self.assertEqual(freq.header["SAMP_HZ"], 30.72e6)
-                self.assertEqual(freq.header["FFT_LEN"], 4096)
-                self.assertEqual(freq.header["EDGEPCT"], 20.0)
-                self.assertEqual(freq.header["N_EDGE"], 819)
-                self.assertEqual(freq.header["N_USED"], 2458)
-                self.assertEqual(freq.header["CHAN_BW"], 18435000.0)
-                self.assertEqual(freq.header["EFF_BW"], 18435000.0)
-                self.assertEqual(float(np.asarray(freq.data["CH_WIDTH"][0]).reshape(-1)[0]), 18435000.0)
-                self.assertEqual(float(np.asarray(freq.data["TOTAL_BANDWIDTH"][0]).reshape(-1)[0]), 18435000.0)
+            assert_frequency_metadata(self, final_path, 20.0, 2458, 18435000.0)
+            diagnostic = pathlib.Path(final_path).with_name(pathlib.Path(final_path).stem + "_diagnostics.csv")
+            self.assertTrue(diagnostic.exists())
+            text = diagnostic.read_text(encoding="utf-8")
+            self.assertIn("samp_rate_hz", text)
+            self.assertIn("retained_fft_bins", text)
+            self.assertIn("emitted_utc", text)
+            self.assertIn("integration_center_utc", text)
+
+    def test_custom_edge_exclusion_metadata_reaches_csv_and_fits(self):
+        cases = [
+            (5.0, 3688, 27660000.0),
+            (12.5, 3072, 23040000.0),
+        ]
+        for edge_pct, retained_bins, bandwidth_hz in cases:
+            with self.subTest(edge_pct=edge_pct), tempfile.TemporaryDirectory() as tmp:
+                cfg = base_config(tmp)
+                cfg["visibility_edge_exclude_pct"] = edge_pct
+                cfg["retained_fft_bins"] = retained_bins
+                cfg["effective_correlated_bandwidth_hz"] = bandwidth_hz
+                writer = writer_mod.FitsIdiWriter(cfg)
+                writer.start()
+                add_records(writer, 1)
+                final_path = writer.stop()
+                assert_frequency_metadata(self, final_path, edge_pct, retained_bins, bandwidth_hz)
                 diagnostic = pathlib.Path(final_path).with_name(pathlib.Path(final_path).stem + "_diagnostics.csv")
-                self.assertTrue(diagnostic.exists())
                 text = diagnostic.read_text(encoding="utf-8")
-                self.assertIn("samp_rate_hz", text)
-                self.assertIn("retained_fft_bins", text)
+                self.assertIn(f",{edge_pct},{retained_bins},{bandwidth_hz}", text)
+
+    def test_writer_rejects_missing_or_mismatched_science_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = base_config(tmp)
+            del cfg["visibility_edge_exclude_pct"]
+            with self.assertRaisesRegex(ValueError, "visibility_edge_exclude_pct"):
+                writer_mod.FitsIdiWriter(cfg)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = base_config(tmp)
+            cfg["visibility_edge_exclude_pct"] = 5.0
+            cfg["retained_fft_bins"] = 2458
+            cfg["effective_correlated_bandwidth_hz"] = 18435000.0
+            writer = writer_mod.FitsIdiWriter(cfg)
+            with self.assertRaisesRegex(ValueError, "retained FFT bin metadata mismatch"):
+                writer.start()
 
     def test_current_baseline_and_stage6_cross_check(self):
         offset = writer_mod.enu_to_ecef_offset(-5.785, 0.095, 0.580, -32.724, 152.130167)

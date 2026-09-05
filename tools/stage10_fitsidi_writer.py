@@ -26,6 +26,29 @@ STATE_FINALIZING = 2
 STATE_COMPLETE = 3
 STATE_ERROR = -1
 
+SCIENTIFIC_CONFIG_FIELDS = (
+    "source_mode",
+    "manual_ra_hours",
+    "manual_dec_deg",
+    "site_lat_deg",
+    "site_lon_deg",
+    "site_height_m",
+    "baseline_e_m",
+    "baseline_n_m",
+    "baseline_u_m",
+    "sky_cf_hz",
+    "samp_rate",
+    "fft_size",
+    "visibility_edge_exclude_pct",
+    "instrument_delay_ns",
+    "delay_correction_enable",
+    "fringe_stop_enable",
+    "fringe_stop_sign",
+    "stokes_code",
+    "polarization_label",
+    "polarization_assumed",
+)
+
 
 def default_config():
     return {
@@ -62,9 +85,19 @@ def default_config():
 
 
 def merged_config(overrides):
-    cfg = default_config()
+    cfg = {
+        "observation_name": "obs1",
+        "output_dir": "~/FX_Correlator_Data",
+        "observer": "FX GNU Radio Correlator",
+        "git_commit": "unknown",
+        "chunk_rows": DEFAULT_CHUNK_ROWS,
+        "chunk_age_s": DEFAULT_CHUNK_AGE_S,
+    }
     if overrides:
         cfg.update(overrides)
+    missing = [field for field in SCIENTIFIC_CONFIG_FIELDS if field not in cfg or cfg[field] is None]
+    if missing:
+        raise ValueError(f"missing required Stage 10 scientific metadata: {', '.join(missing)}")
     return cfg
 
 
@@ -301,6 +334,17 @@ class FitsIdiWriter:
             self._csv_handle = None
 
     def _validate_start(self):
+        n_edge, n_used, bw = effective_bandwidth_hz(
+            self.config["samp_rate"],
+            self.config["fft_size"],
+            self.config["visibility_edge_exclude_pct"],
+        )
+        if "retained_fft_bins" in self.config and int(self.config["retained_fft_bins"]) != int(n_used):
+            raise ValueError("Stage 10 retained FFT bin metadata mismatch")
+        if "effective_correlated_bandwidth_hz" in self.config and not math.isclose(
+            float(self.config["effective_correlated_bandwidth_hz"]), bw, rel_tol=1e-9, abs_tol=1e-3
+        ):
+            raise ValueError("Stage 10 effective bandwidth metadata mismatch")
         if not bool(self.config["delay_correction_enable"]):
             raise ValueError("FITS-IDI recording requires Stage-7 delay correction enabled")
         if not bool(self.config["fringe_stop_enable"]) or int(self.config["fringe_stop_sign"]) != -1:
@@ -368,6 +412,7 @@ class FitsIdiWriter:
             "host UTC integration-centre timestamp method",
             "calibration state = uncalibrated",
             "single-channel continuum; FREQUENCY bandwidth is retained FFT bandwidth",
+            "UT1UTC/POLARX/POLARY are Version-1 placeholders, not measured values",
         ]
         if int(self.config["source_mode"]) == 0:
             histories.append("Sun is a moving ephemeris source; SOURCE table coordinates are reference coordinates.")
@@ -469,6 +514,11 @@ class FitsIdiWriter:
             t_center = received - (eff_s / 2.0) * u.s
         else:
             t_center = Time(t_center, scale="utc")
+        emitted_utc = record.get("emitted_utc")
+        if emitted_utc is None:
+            emitted_utc = t_center + (eff_s / 2.0) * u.s
+        else:
+            emitted_utc = Time(emitted_utc, scale="utc")
         meta = source_metadata(self.config, t_center)
         uvw_supplied = "project_uvw_m" in record
         if uvw_supplied:
@@ -488,13 +538,14 @@ class FitsIdiWriter:
         wavelength_m = C_M_S / float(self.config["sky_cf_hz"])
         return {
             "t_center": t_center,
+            "emitted_utc": emitted_utc,
             "date_jd": date_jd,
             "time_days": time_days,
             "visibility": vis,
             "weight": 1.0 if math.isfinite(vis.real) and math.isfinite(vis.imag) else 0.0,
             "coherence_pct": float(record.get("coherence_pct", np.nan)),
             "effective_integration_s": eff_s,
-            "n_int": float(record.get("n_int", np.nan)),
+            "n_int": int(record.get("n_int", 0)),
             "u_project_m": u_m,
             "v_project_m": v_m,
             "w_project_m": w_m,
@@ -586,6 +637,8 @@ class FitsIdiWriter:
     def _diagnostic_fields(self):
         return [
             "utc_iso",
+            "emitted_utc",
+            "integration_center_utc",
             "julian_date",
             "source",
             "apparent_ra_hour",
@@ -623,6 +676,8 @@ class FitsIdiWriter:
         meta = row["meta"]
         return {
             "utc_iso": row["t_center"].utc.isot,
+            "emitted_utc": row["emitted_utc"].utc.isot,
+            "integration_center_utc": row["t_center"].utc.isot,
             "julian_date": row["date_jd"] + row["time_days"],
             "source": meta["source"],
             "apparent_ra_hour": meta["apparent_ra_hour"],

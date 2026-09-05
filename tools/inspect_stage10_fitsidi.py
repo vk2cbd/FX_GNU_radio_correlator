@@ -60,8 +60,30 @@ def inspect(path):
             print(f"Retained FFT bins: {freq.header.get('N_USED', 'unknown')}")
             print(f"Effective retained bandwidth (CHAN_BW): {freq.header['CHAN_BW']:.9g} Hz")
             if freq.data is not None and len(freq.data):
+                ch_width = np.asarray(freq.data["CH_WIDTH"][0]).reshape(-1)[0]
                 total_bw = np.asarray(freq.data["TOTAL_BANDWIDTH"][0]).reshape(-1)[0]
+                print(f"FREQUENCY CH_WIDTH: {float(ch_width):.9g} Hz")
                 print(f"FREQUENCY TOTAL_BANDWIDTH: {float(total_bw):.9g} Hz")
+        if "SOURCE" in hdul and hdul["SOURCE"].data is not None and len(hdul["SOURCE"].data):
+            src = hdul["SOURCE"].data[0]
+            print(f"SOURCE name: {src['SOURCE'].strip()}")
+            print(f"SOURCE RAEPO/DECEPO: {float(src['RAEPO']):.9g} deg, {float(src['DECEPO']):.9g} deg")
+            print(f"SOURCE RAAPP/DECAPP: {float(src['RAAPP']):.9g} deg, {float(src['DECAPP']):.9g} deg")
+        if "ARRAY_GEOMETRY" in hdul:
+            arr = hdul["ARRAY_GEOMETRY"]
+            print(
+                "ARRAY location XYZ: "
+                f"{arr.header.get('ARRAYX', float('nan')):.6f}, "
+                f"{arr.header.get('ARRAYY', float('nan')):.6f}, "
+                f"{arr.header.get('ARRAYZ', float('nan')):.6f} m"
+            )
+            print(
+                "Earth orientation metadata: "
+                f"UT1UTC={arr.header.get('UT1UTC', 'unknown')} "
+                f"IATUTC={arr.header.get('IATUTC', 'unknown')} "
+                f"POLARX={arr.header.get('POLARX', 'unknown')} "
+                f"POLARY={arr.header.get('POLARY', 'unknown')}"
+            )
 
 
 def finalize(path):

@@ -46,6 +46,9 @@ class blk(gr.sync_block):
         delay_correction_enable=True,
         fringe_stop_enable=True,
         fringe_stop_sign=-1,
+        stokes_code=-5,
+        polarization_label="XX",
+        polarization_assumed=True,
     ):
         gr.sync_block.__init__(
             self,
@@ -77,6 +80,9 @@ class blk(gr.sync_block):
         self.delay_correction_enable = self._as_bool(delay_correction_enable)
         self.fringe_stop_enable = self._as_bool(fringe_stop_enable)
         self.fringe_stop_sign = int(fringe_stop_sign)
+        self.stokes_code = int(stokes_code)
+        self.polarization_label = str(polarization_label)
+        self.polarization_assumed = self._as_bool(polarization_assumed)
         self._thread = threading.Thread(target=self._server_loop, name="stage10-publisher", daemon=True)
         self._thread.start()
 
@@ -108,6 +114,9 @@ class blk(gr.sync_block):
                 "delay_correction_enable": self.delay_correction_enable,
                 "fringe_stop_enable": self.fringe_stop_enable,
                 "fringe_stop_sign": self.fringe_stop_sign,
+                "stokes_code": self.stokes_code,
+                "polarization_label": self.polarization_label,
+                "polarization_assumed": self.polarization_assumed,
             }
 
     def _server_loop(self):
@@ -246,3 +255,15 @@ class blk(gr.sync_block):
     def set_fringe_stop_sign(self, value):
         with self._lock:
             self.fringe_stop_sign = int(value)
+
+    def set_stokes_code(self, value):
+        with self._lock:
+            self.stokes_code = int(value)
+
+    def set_polarization_label(self, value):
+        with self._lock:
+            self.polarization_label = str(value)
+
+    def set_polarization_assumed(self, value):
+        with self._lock:
+            self.polarization_assumed = self._as_bool(value)

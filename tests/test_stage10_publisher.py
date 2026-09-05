@@ -57,6 +57,9 @@ class Stage10PublisherTests(unittest.TestCase):
         ]:
             self.assertNotIn(removed, stage10_blocks)
         publisher = stage10_blocks["stage10_visibility_publisher"]
+        combiner = stage10_blocks["broadband_visibility_combiner"]
+        self.assertEqual(combiner["parameters"]["visibility_edge_exclude_pct"], "visibility_edge_exclude_pct")
+        self.assertEqual(publisher["parameters"]["visibility_edge_exclude_pct"], "visibility_edge_exclude_pct")
         inputs = publisher["states"]["_io_cache"][3]
         outputs = publisher["states"]["_io_cache"][4]
         self.assertEqual(inputs, [["0", "complex", 1], ["1", "float", 1], ["2", "float", 1], ["3", "float", 1]])
@@ -93,6 +96,18 @@ class Stage10PublisherTests(unittest.TestCase):
         self.assertEqual(manual["source_mode"], 1)
         self.assertEqual(manual["source_name"], "Manual")
         self.assertEqual(manual["sequence"], 1)
+        block.set_visibility_edge_exclude_pct(5.0)
+        block.work(inputs, outputs)
+        edge_5 = block._queue.get_nowait()
+        self.assertEqual(edge_5["visibility_edge_exclude_pct"], 5.0)
+        self.assertEqual(edge_5["retained_fft_bins"], 3688)
+        self.assertEqual(edge_5["effective_correlated_bandwidth_hz"], 27660000.0)
+        block.set_visibility_edge_exclude_pct(12.5)
+        block.work(inputs, outputs)
+        edge_12_5 = block._queue.get_nowait()
+        self.assertEqual(edge_12_5["visibility_edge_exclude_pct"], 12.5)
+        self.assertEqual(edge_12_5["retained_fft_bins"], 3072)
+        self.assertEqual(edge_12_5["effective_correlated_bandwidth_hz"], 23040000.0)
 
 
 if __name__ == "__main__":
