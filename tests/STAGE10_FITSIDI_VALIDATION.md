@@ -9,6 +9,23 @@ It does not create, open, close, or finalize FITS-IDI files.
 Stage 10B is the standalone logger in `tools/stage10_fitsidi_logger.py`.
 It owns operator Start/Stop control and FITS-IDI file creation.
 
+## Metadata Propagation Check
+
+The Stage-10 publisher Embedded Python wrapper must expose the same constructor
+metadata parameters as the real publisher block. If generated Python contains:
+
+```python
+self.stage10_visibility_publisher = stage10_visibility_publisher.blk()
+```
+
+then GRC is not passing live flowgraph metadata and the publisher will use its
+constructor defaults. The generated Python must pass the live variables,
+including:
+
+```python
+visibility_edge_exclude_pct=self.visibility_edge_exclude_pct
+```
+
 ## Startup No-Recording Test
 
 1. Start GNU Radio Companion.

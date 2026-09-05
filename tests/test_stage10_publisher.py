@@ -1,4 +1,5 @@
 import importlib.util
+import inspect
 import pathlib
 import queue
 import sys
@@ -69,6 +70,60 @@ class Stage10PublisherTests(unittest.TestCase):
         self.assertIn(("coherent_visibility_integrator", "1", "stage10_visibility_publisher", "1"), connections)
         self.assertIn(("coherent_visibility_integrator", "2", "stage10_visibility_publisher", "2"), connections)
         self.assertIn(("coherent_visibility_integrator", "3", "stage10_visibility_publisher", "3"), connections)
+
+    def test_grc_embedded_wrapper_exposes_constructor_metadata_params(self):
+        stage10 = yaml.safe_load((ROOT / "grc" / "fx_interferometer_v1_stage10.grc").read_text())
+        blocks = {block["name"]: block for block in stage10["blocks"]}
+        source = blocks["stage10_visibility_publisher"]["parameters"]["_source_code"]
+        gnuradio = types.ModuleType("gnuradio")
+
+        class FakeSyncBlock:
+            def __init__(self, *args, **kwargs):
+                self.init_args = (args, kwargs)
+
+        class FakePublisher(FakeSyncBlock):
+            pass
+
+        gnuradio.gr = types.SimpleNamespace(sync_block=FakeSyncBlock)
+        fake_module = types.ModuleType("fx_interferometer_v1_stage10_visibility_publisher")
+        fake_module.blk = FakePublisher
+        old_modules = {name: sys.modules.get(name) for name in ["gnuradio", "gnuradio.gr", fake_module.__name__]}
+        sys.modules["gnuradio"] = gnuradio
+        sys.modules["gnuradio.gr"] = gnuradio.gr
+        sys.modules[fake_module.__name__] = fake_module
+        namespace = {}
+        try:
+            exec(source, namespace)
+        finally:
+            for name, old in old_modules.items():
+                if old is None:
+                    sys.modules.pop(name, None)
+                else:
+                    sys.modules[name] = old
+        params = inspect.signature(namespace["blk"].__init__).parameters
+        for required in [
+            "source_mode",
+            "manual_ra_hours",
+            "manual_dec_deg",
+            "site_lat_deg",
+            "site_lon_deg",
+            "site_height_m",
+            "baseline_e_m",
+            "baseline_n_m",
+            "baseline_u_m",
+            "sky_cf_hz",
+            "samp_rate",
+            "fft_size",
+            "visibility_edge_exclude_pct",
+            "instrument_delay_ns",
+            "delay_correction_enable",
+            "fringe_stop_enable",
+            "fringe_stop_sign",
+        ]:
+            self.assertIn(required, params)
+        instance = namespace["blk"](visibility_edge_exclude_pct=5.0, source_mode=1)
+        self.assertEqual(instance.init_args[1]["visibility_edge_exclude_pct"], 5.0)
+        self.assertEqual(instance.init_args[1]["source_mode"], 1)
 
     def test_publisher_packets_have_source_and_science_values(self):
         module = load_publisher()
