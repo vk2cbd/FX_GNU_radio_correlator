@@ -1,5 +1,6 @@
 import importlib.util
 import inspect
+import ast
 import pathlib
 import queue
 import sys
@@ -11,6 +12,12 @@ import yaml
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+
+
+def normalize_io_cache(cache):
+    if isinstance(cache, str):
+        cache = ast.literal_eval(cache)
+    return cache
 
 
 def load_publisher():
@@ -61,8 +68,12 @@ class Stage10PublisherTests(unittest.TestCase):
         combiner = stage10_blocks["broadband_visibility_combiner"]
         self.assertEqual(combiner["parameters"]["visibility_edge_exclude_pct"], "visibility_edge_exclude_pct")
         self.assertEqual(publisher["parameters"]["visibility_edge_exclude_pct"], "visibility_edge_exclude_pct")
-        inputs = publisher["states"]["_io_cache"][3]
-        outputs = publisher["states"]["_io_cache"][4]
+        io_cache = normalize_io_cache(publisher["states"]["_io_cache"])
+        params = {name for name, _default in io_cache[2]}
+        self.assertIn("visibility_edge_exclude_pct", params)
+        self.assertIn("source_mode", params)
+        inputs = [list(item) for item in io_cache[3]]
+        outputs = [list(item) for item in io_cache[4]]
         self.assertEqual(inputs, [["0", "complex", 1], ["1", "float", 1], ["2", "float", 1], ["3", "float", 1]])
         self.assertEqual(outputs, [["0", "float", 1]])
         connections = {tuple(c) for c in stage10["connections"]}
