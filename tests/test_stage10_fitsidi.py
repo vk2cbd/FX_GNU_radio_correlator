@@ -129,8 +129,22 @@ class Stage10FitsIdiTests(unittest.TestCase):
             self.assertEqual(summary["records"], 27)
             self.assertEqual(summary["uv_chunks"], 3)
             with fits.open(final_path, memmap=False) as hdul:
-                self.assertEqual(hdul["FREQUENCY"].header["REF_FREQ"], 4.800e9)
-                self.assertEqual(hdul["FREQUENCY"].header["CHAN_BW"], 18435000.0)
+                freq = hdul["FREQUENCY"]
+                self.assertEqual(freq.header["REF_FREQ"], 4.800e9)
+                self.assertEqual(freq.header["SAMP_HZ"], 30.72e6)
+                self.assertEqual(freq.header["FFT_LEN"], 4096)
+                self.assertEqual(freq.header["EDGEPCT"], 20.0)
+                self.assertEqual(freq.header["N_EDGE"], 819)
+                self.assertEqual(freq.header["N_USED"], 2458)
+                self.assertEqual(freq.header["CHAN_BW"], 18435000.0)
+                self.assertEqual(freq.header["EFF_BW"], 18435000.0)
+                self.assertEqual(float(np.asarray(freq.data["CH_WIDTH"][0]).reshape(-1)[0]), 18435000.0)
+                self.assertEqual(float(np.asarray(freq.data["TOTAL_BANDWIDTH"][0]).reshape(-1)[0]), 18435000.0)
+                diagnostic = pathlib.Path(final_path).with_name(pathlib.Path(final_path).stem + "_diagnostics.csv")
+                self.assertTrue(diagnostic.exists())
+                text = diagnostic.read_text(encoding="utf-8")
+                self.assertIn("samp_rate_hz", text)
+                self.assertIn("retained_fft_bins", text)
 
     def test_current_baseline_and_stage6_cross_check(self):
         offset = writer_mod.enu_to_ecef_offset(-5.785, 0.095, 0.580, -32.724, 152.130167)

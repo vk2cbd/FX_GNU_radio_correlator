@@ -54,7 +54,14 @@ def inspect(path):
         if "FREQUENCY" in hdul:
             freq = hdul["FREQUENCY"]
             print(f"REF_FREQ: {freq.header['REF_FREQ']:.9g} Hz")
-            print(f"CHAN_BW: {freq.header['CHAN_BW']:.9g} Hz")
+            print(f"Sample rate: {freq.header.get('SAMP_HZ', float('nan')):.9g} Hz")
+            print(f"FFT length: {freq.header.get('FFT_LEN', 'unknown')}")
+            print(f"Stage-8 edge exclusion: {freq.header.get('EDGEPCT', float('nan')):.6g} %")
+            print(f"Retained FFT bins: {freq.header.get('N_USED', 'unknown')}")
+            print(f"Effective retained bandwidth (CHAN_BW): {freq.header['CHAN_BW']:.9g} Hz")
+            if freq.data is not None and len(freq.data):
+                total_bw = np.asarray(freq.data["TOTAL_BANDWIDTH"][0]).reshape(-1)[0]
+                print(f"FREQUENCY TOTAL_BANDWIDTH: {float(total_bw):.9g} Hz")
 
 
 def finalize(path):

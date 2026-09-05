@@ -311,7 +311,7 @@ class FitsIdiWriter:
             raise ValueError("Stage 10 must not label the measured product as Stokes I")
 
     def _common_keywords(self):
-        _, _, bw = effective_bandwidth_hz(
+        n_edge, n_used, bw = effective_bandwidth_hz(
             self.config["samp_rate"],
             self.config["fft_size"],
             self.config["visibility_edge_exclude_pct"],
@@ -324,6 +324,12 @@ class FitsIdiWriter:
             "NO_CHAN": 1,
             "REF_FREQ": float(self.config["sky_cf_hz"]),
             "CHAN_BW": float(bw),
+            "EFF_BW": float(bw),
+            "SAMP_HZ": float(self.config["samp_rate"]),
+            "FFT_LEN": int(self.config["fft_size"]),
+            "EDGEPCT": float(self.config["visibility_edge_exclude_pct"]),
+            "N_EDGE": int(n_edge),
+            "N_USED": int(n_used),
             "REF_PIXL": 1.0,
             "RDATE": self._start_time.utc.datetime.strftime("%Y-%m-%d"),
         }
@@ -605,6 +611,10 @@ class FitsIdiWriter:
             "effective_integration_s",
             "n_int",
             "sky_cf_hz",
+            "samp_rate_hz",
+            "fft_size",
+            "visibility_edge_exclude_pct",
+            "retained_fft_bins",
             "effective_correlated_bandwidth_hz",
         ]
 
@@ -638,6 +648,10 @@ class FitsIdiWriter:
             "effective_integration_s": row["effective_integration_s"],
             "n_int": row["n_int"],
             "sky_cf_hz": self.config["sky_cf_hz"],
+            "samp_rate_hz": self._common["SAMP_HZ"],
+            "fft_size": self._common["FFT_LEN"],
+            "visibility_edge_exclude_pct": self._common["EDGEPCT"],
+            "retained_fft_bins": self._common["N_USED"],
             "effective_correlated_bandwidth_hz": self._common["CHAN_BW"],
         }
 

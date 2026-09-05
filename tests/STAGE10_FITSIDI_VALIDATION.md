@@ -73,6 +73,17 @@ Inspect a final or partial file with:
 python3 tools/inspect_stage10_fitsidi.py ~/FX_Correlator_Data/<file>.fitsidi
 ```
 
+The reported `CHAN_BW` is the Stage-8 retained continuum bandwidth, not the raw
+B210 sample rate. With the current defaults this is:
+
+```text
+sample rate = 30.72 MHz
+FFT length = 4096
+edge exclusion = 20% per side
+retained FFT bins = 2458
+effective retained bandwidth = 18.435 MHz
+```
+
 Plot U/V coverage with:
 
 ```bash
