@@ -175,6 +175,64 @@ class Stage10PublisherTests(unittest.TestCase):
         self.assertEqual(edge_12_5["retained_fft_bins"], 3072)
         self.assertEqual(edge_12_5["effective_correlated_bandwidth_hz"], 23040000.0)
 
+    def test_publisher_reads_live_grc_owner_values_when_generated_without_args(self):
+        module = load_publisher()
+
+        class GeneratedTopBlock:
+            source_mode = 1
+            manual_ra_hours = 18.3
+            manual_dec_deg = -16.2
+            site_lat_deg = -32.724
+            site_lon_deg = 152.130167
+            site_height_m = 70.0
+            baseline_e_m = -5.785
+            baseline_n_m = 0.095
+            baseline_u_m = 0.580
+            sky_cf = 4.8e9
+            samp_rate = 30.72e6
+            fft_size = 4096
+            visibility_edge_exclude_pct = 5.0
+            instrument_delay_ns = -1.9
+            delay_correction_enable = True
+            fringe_stop_enable = True
+            fringe_stop_sign = -1
+            stokes_code = -5
+            polarization_label = "XX"
+            polarization_assumed = True
+
+            def __init__(self):
+                self.stage10_visibility_publisher = module.blk(port=0)
+
+        top_block = GeneratedTopBlock()
+        block = top_block.stage10_visibility_publisher
+        block._connected = True
+        block._queue = queue.Queue(maxsize=10)
+        inputs = [
+            np.array([3 + 4j], dtype=np.complex64),
+            np.array([99.5], dtype=np.float32),
+            np.array([1.0], dtype=np.float32),
+            np.array([10.0], dtype=np.float32),
+        ]
+        outputs = [np.zeros(1, dtype=np.float32)]
+        block.work(inputs, outputs)
+        packet = block._queue.get_nowait()
+        self.assertEqual(packet["source_mode"], 1)
+        self.assertEqual(packet["source_name"], "Manual")
+        self.assertEqual(packet["manual_ra_hours"], 18.3)
+        self.assertEqual(packet["manual_dec_deg"], -16.2)
+        self.assertEqual(packet["visibility_edge_exclude_pct"], 5.0)
+        self.assertEqual(packet["retained_fft_bins"], 3688)
+        self.assertEqual(packet["effective_correlated_bandwidth_hz"], 27660000.0)
+
+        top_block.source_mode = 0
+        top_block.visibility_edge_exclude_pct = 12.5
+        block.work(inputs, outputs)
+        updated = block._queue.get_nowait()
+        self.assertEqual(updated["source_name"], "Sun")
+        self.assertEqual(updated["visibility_edge_exclude_pct"], 12.5)
+        self.assertEqual(updated["retained_fft_bins"], 3072)
+        self.assertEqual(updated["effective_correlated_bandwidth_hz"], 23040000.0)
+
 
 if __name__ == "__main__":
     unittest.main()
